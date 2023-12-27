@@ -1,6 +1,6 @@
 using System.IO.Compression;
 
-namespace GrpcGenerator.zipper;
+namespace GrpcGenerator.Utils;
 
 public static class Zipper
 {
