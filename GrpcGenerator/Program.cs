@@ -1,3 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using GrpcGenerator.zipper;
+using Microsoft.Extensions.Configuration;
 
-IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+FileInfo file = new FileInfo("../../../appsettings.json");
+IConfiguration config = new ConfigurationBuilder()
+    .AddJsonFile(file.DirectoryName + "/" + file.Name)
+    .Build();
