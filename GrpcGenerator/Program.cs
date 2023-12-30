@@ -10,16 +10,25 @@ IConfiguration config = new ConfigurationBuilder()
     .Build();
 
 var guid = Guid.NewGuid().ToString();
-Copier.CopyDirectory(config["sourceCodeRoot"] + "/templates/dotnet6/Template",
-    config["sourceCodeRoot"] + "/" + guid + "/Template");
-ProjectRenamer.RenameDotNetProject(config["sourceCodeRoot"] + "/" + guid, "Template", "Template",
-    "FirstSolution", "FirstProject");
+
+const string oldSolutionName = "Template";
+const string oldProjectName = "Template";
+
+Copier.CopyDirectory($"{config["sourceCodeRoot"]}/templates/dotnet6/{oldSolutionName}",
+    $"{config["sourceCodeRoot"]}/{guid}/{oldSolutionName}");
+
+const string newSolutionName = "FirstSolution";
+const string newProjectName = "FirstProject";
+
+ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolutionName, oldProjectName,
+    newSolutionName, newProjectName);
 
 IModelGenerator modelGenerator = new EfCoreModelGenerator();
+Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/domain");
 modelGenerator.GenerateModels("Server=127.0.0.1;Port=5432;Database=zavrsni_rad;Uid=postgres;Pwd=bazepodataka;",
-    "postgres", config["sourceCodeRoot"] + "/" + guid + "/FirstSolution/FirstProject");
+    "postgres", $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/domain");
 
-Zipper.ZipDirectory(config["sourceCodeRoot"] + "/" + guid,
-    config["sourceCodeRoot"] + "/" + config["mainProjectName"] + "/" + "FirstSolution.zip");
+Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
+    $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
 
-Directory.Delete(config["sourceCodeRoot"] + "/" + guid, true);
+Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);
