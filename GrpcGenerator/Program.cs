@@ -1,5 +1,5 @@
-﻿using GrpcGenerator.generators;
-using GrpcGenerator.generators.impl;
+﻿using GrpcGenerator.Generators.ModelGenerators;
+using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Utils;
 using Microsoft.Extensions.Configuration;
 

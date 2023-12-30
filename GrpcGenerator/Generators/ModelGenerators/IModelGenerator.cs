@@ -1,4 +1,4 @@
-namespace GrpcGenerator.generators;
+namespace GrpcGenerator.Generators.ModelGenerators;
 
 public interface IModelGenerator
 {

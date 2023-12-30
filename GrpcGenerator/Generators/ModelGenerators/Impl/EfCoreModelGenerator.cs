@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace GrpcGenerator.generators.impl;
+namespace GrpcGenerator.Generators.ModelGenerators.Impl;
 
 public class EfCoreModelGenerator : IModelGenerator
 {
