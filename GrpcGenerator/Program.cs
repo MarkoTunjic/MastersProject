@@ -1,5 +1,7 @@
 ﻿using GrpcGenerator.Generators.DtoGenerators;
 using GrpcGenerator.Generators.DtoGenerators.Impl;
+using GrpcGenerator.Generators.MapperGenerators;
+using GrpcGenerator.Generators.MapperGenerators.Impl;
 using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Utils;
@@ -47,6 +49,13 @@ Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/
 dtoGenerator.GenerateDtos($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Models",
     $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto", databaseName,
     $"{newProjectName}.Domain.Dto");
+
+IMapperGenerator mapperGenerator = new DotnetMapperGenerator();
+Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers");
+mapperGenerator.GenerateMappers($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto",
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers",
+    $"{newProjectName}.Domain.Mappers",
+    "Domain.Models", $"{newProjectName}.Domain.Dto");
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");

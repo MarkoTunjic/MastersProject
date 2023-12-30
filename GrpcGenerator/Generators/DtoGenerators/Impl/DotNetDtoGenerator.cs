@@ -12,7 +12,7 @@ public class DotNetDtoGenerator : IDtoGenerator
                 $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}Dto";
             using var stream = new StreamWriter(File.Create($"{destinationDirectory}/{className}.cs"));
             stream.WriteLine($"namespace {packageName};");
-            stream.WriteLine($"\npublic class {className} {{");
+            stream.WriteLine($"\npublic class {className} \n{{");
             var variables = File.ReadLines(file).Where(line =>
                 line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
                 !line.Contains("virtual "));
