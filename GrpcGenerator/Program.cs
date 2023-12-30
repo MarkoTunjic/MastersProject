@@ -1,13 +1,18 @@
-﻿using GrpcGenerator.Generators.ModelGenerators;
+﻿using GrpcGenerator.Generators.DtoGenerators;
+using GrpcGenerator.Generators.DtoGenerators.Impl;
+using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Utils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 var file = new FileInfo("../../../appsettings.json");
-
 IConfiguration config = new ConfigurationBuilder()
     .AddJsonFile(file.DirectoryName + "/" + file.Name)
     .Build();
+
+var services = new ServiceCollection();
+services.AddSingleton(config);
 
 var guid = Guid.NewGuid().ToString();
 
@@ -24,9 +29,24 @@ ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolu
     newSolutionName, newProjectName);
 
 IModelGenerator modelGenerator = new EfCoreModelGenerator();
-Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/domain");
-modelGenerator.GenerateModels("Server=127.0.0.1;Port=5432;Database=zavrsni_rad;Uid=postgres;Pwd=bazepodataka;",
-    "postgres", $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/domain");
+Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain");
+
+var databaseName = "zavrsni_rad";
+var databaseServer = "127.0.0.1";
+var databasePort = "5432";
+var databaseUid = "postgres";
+var databasePwd = "bazepodataka";
+
+ServicesProvider.SetServices(services.BuildServiceProvider());
+modelGenerator.GenerateModels(
+    $"Server={databaseServer};Port={databasePort};Database={databaseName};Uid={databaseUid};Pwd={databasePwd};",
+    "postgres", $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain");
+
+IDtoGenerator dtoGenerator = new DotNetDtoGenerator();
+Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto");
+dtoGenerator.GenerateDtos($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Models",
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto", databaseName,
+    $"{newProjectName}.Domain.Dto");
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
