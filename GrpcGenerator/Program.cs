@@ -2,6 +2,8 @@
 using GrpcGenerator.Generators.AdditionalActions.Impl;
 using GrpcGenerator.Generators.ConfigGenerators;
 using GrpcGenerator.Generators.ConfigGenerators.Impl;
+using GrpcGenerator.Generators.DependencyGenerators;
+using GrpcGenerator.Generators.DependencyGenerators.Impl;
 using GrpcGenerator.Generators.DtoGenerators;
 using GrpcGenerator.Generators.DtoGenerators.Impl;
 using GrpcGenerator.Generators.MapperGenerators;
@@ -59,6 +61,10 @@ mapperGenerator.GenerateMappers($"{config["sourceCodeRoot"]}/{guid}/{newSolution
     $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers",
     $"{newProjectName}.Domain.Mappers",
     "Domain.Models", $"{newProjectName}.Domain.Dto");
+
+IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
+dependencyGenerator.GenerateDependencies(
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/{newProjectName}.csproj");
 
 IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
 databaseConfigGenerator.GenerateConfig($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}",

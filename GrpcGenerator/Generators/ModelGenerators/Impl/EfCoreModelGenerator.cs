@@ -41,13 +41,11 @@ public class EfCoreModelGenerator : IModelGenerator
         using var stream = new StreamWriter(File.Create($"{targetDirectory}/ModelServiceRegistration.cs"));
 
         stream.WriteLine("using Microsoft.EntityFrameworkCore;");
-        stream.WriteLine("using Microsoft.Extensions.DependencyInjection;");
-        stream.WriteLine("using Microsoft.Extensions.Configuration;");
         stream.WriteLine("using Domain.Models;\n");
         stream.WriteLine($"namespace {projectName}.Domain;");
         stream.WriteLine("public static class ModelServiceRegistration\n{");
         stream.WriteLine(
-            "\t        public static void AddModels(this IServiceCollection services, IConfiguration configuration)\n\t{");
+            "\tpublic static void AddModels(this IServiceCollection services, IConfiguration configuration)\n\t{");
         stream.WriteLine($"\t\tservices.AddDbContext<{databaseName}Context>(options =>\n\t\t{{");
         stream.WriteLine($"\t\t\t{_addServiceCommand[_stringToEnum[provider]]}");
         stream.WriteLine("\t\t}, contextLifetime: ServiceLifetime.Transient);");

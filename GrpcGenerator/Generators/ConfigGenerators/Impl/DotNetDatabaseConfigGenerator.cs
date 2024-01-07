@@ -7,7 +7,7 @@ public class DotNetDatabaseConfigGenerator : IConfigGenerator
     {
         var lines = new List<string>(File.ReadLines($"{pathToConfigDirectory}/appsettings.json"));
         lines.Insert(1,
-            $"  \"DefaultConnection\": Server={databaseServer};Port={databasePort};Database={databaseName};Uid={databaseUid};Pwd={databasePwd}");
+            $"  \"DefaultConnection\": \"Server={databaseServer};Port={databasePort};Database={databaseName};Uid={databaseUid};Pwd={databasePwd}\",");
         File.WriteAllLines($"{pathToConfigDirectory}/appsettings.json", lines);
     }
 }
