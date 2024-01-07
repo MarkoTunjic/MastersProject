@@ -1,4 +1,6 @@
-﻿using GrpcGenerator.Generators.DtoGenerators;
+﻿using GrpcGenerator.Generators.AdditionalActions;
+using GrpcGenerator.Generators.AdditionalActions.Impl;
+using GrpcGenerator.Generators.DtoGenerators;
 using GrpcGenerator.Generators.DtoGenerators.Impl;
 using GrpcGenerator.Generators.MapperGenerators;
 using GrpcGenerator.Generators.MapperGenerators.Impl;
@@ -40,9 +42,8 @@ var databaseUid = "postgres";
 var databasePwd = "bazepodataka";
 
 ServicesProvider.SetServices(services.BuildServiceProvider());
-modelGenerator.GenerateModels(
-    $"Server={databaseServer};Port={databasePort};Database={databaseName};Uid={databaseUid};Pwd={databasePwd};",
-    "postgres", $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain");
+modelGenerator.GenerateModels(databaseName, databaseServer, databasePort, databaseUid, databasePwd,
+    "postgres", $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain", newProjectName);
 
 IDtoGenerator dtoGenerator = new DotNetDtoGenerator();
 Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto");
@@ -56,6 +57,10 @@ mapperGenerator.GenerateMappers($"{config["sourceCodeRoot"]}/{guid}/{newSolution
     $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers",
     $"{newProjectName}.Domain.Mappers",
     "Domain.Models", $"{newProjectName}.Domain.Dto");
+
+IAdditionalAction registerServices = new RegisterServicesAdditionalAction();
+registerServices.DoAdditionalAction($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}",
+    newProjectName);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");

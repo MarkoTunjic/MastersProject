@@ -26,5 +26,19 @@ public class DotnetMapperGenerator : IMapperGenerator
 
         stream.WriteLine("\t}");
         stream.WriteLine("}");
+        GenerateMapperServiceRegistration(targetDirectory, targetPackage);
+    }
+
+    private static void GenerateMapperServiceRegistration(string targetDirectory, string targetPackage)
+    {
+        using var stream = new StreamWriter(File.Create($"{targetDirectory}/MapperServiceRegistration.cs"));
+
+        stream.WriteLine("using Microsoft.Extensions.DependencyInjection;\n");
+        stream.WriteLine($"namespace {targetPackage};");
+        stream.WriteLine("public static class MapperServiceRegistration\n{\n");
+        stream.WriteLine("\tpublic static void AddMappers(this IServiceCollection services)\n\t{\n");
+        stream.WriteLine("\t\tservices.AddAutoMapper(typeof(MapperServiceRegistration));");
+        stream.WriteLine("\t}");
+        stream.WriteLine("}");
     }
 }
