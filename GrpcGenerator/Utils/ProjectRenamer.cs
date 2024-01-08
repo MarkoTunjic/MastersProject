@@ -3,8 +3,11 @@ namespace GrpcGenerator.Utils;
 public class ProjectRenamer
 {
     public static void RenameDotNetProject(string solutionLocation, string oldSolutionName, string oldProjectName,
-        string newSolutionName, string newProjectName)
+        string uuid)
     {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var newSolutionName = generatorVariables.SolutionName;
+        var newProjectName = generatorVariables.ProjectName;
         Directory.Move(
             solutionLocation + "/" + oldSolutionName + "/" + oldProjectName + "/" + oldProjectName + ".csproj",
             solutionLocation + "/" + oldSolutionName + "/" + oldProjectName + "/" + newProjectName + ".csproj");

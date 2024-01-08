@@ -1,11 +1,12 @@
 using System.Diagnostics;
 using GrpcGenerator.Domain;
+using GrpcGenerator.Utils;
 
 namespace GrpcGenerator.Generators.ModelGenerators.Impl;
 
 public class EfCoreModelGenerator : IModelGenerator
 {
-    private static readonly Dictionary<DotNetSupportedDBMS, string> _addServiceCommand = new()
+    private static readonly Dictionary<DotNetSupportedDBMS, string> AddServiceCommand = new()
     {
         {
             DotNetSupportedDBMS.PostgreSql,
@@ -13,7 +14,7 @@ public class EfCoreModelGenerator : IModelGenerator
         }
     };
 
-    private static readonly Dictionary<string, DotNetSupportedDBMS> _stringToEnum = new()
+    private static readonly Dictionary<string, DotNetSupportedDBMS> StringToEnum = new()
     {
         {
             "postgres",
@@ -21,18 +22,19 @@ public class EfCoreModelGenerator : IModelGenerator
         }
     };
 
-    public void GenerateModels(string databaseName, string databaseServer, string databasePort, string databaseUid,
-        string databasePwd, string provider, string destinationFolder, string projectName)
+    public void GenerateModels(string uuid, string destinationFolder)
     {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var process = new Process();
         process.StartInfo.WorkingDirectory = destinationFolder;
         process.StartInfo.FileName = "efcpt";
         var connectionString =
-            $"Server={databaseServer};Port={databasePort};Database={databaseName};Uid={databaseUid};Pwd={databasePwd};";
-        process.StartInfo.Arguments = $"\"{connectionString}\" {provider}";
+            $"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd};";
+        process.StartInfo.Arguments = $"\"{connectionString}\" {generatorVariables.DatabaseConnection.Provider}";
         process.Start();
         process.WaitForExit();
-        GenerateModelsRegistration(destinationFolder, databaseName, provider, projectName);
+        GenerateModelsRegistration(destinationFolder, generatorVariables.DatabaseConnection.DatabaseName,
+            generatorVariables.DatabaseConnection.Provider, generatorVariables.ProjectName);
     }
 
     private static void GenerateModelsRegistration(string targetDirectory, string databaseName, string provider,
@@ -47,7 +49,7 @@ public class EfCoreModelGenerator : IModelGenerator
         stream.WriteLine(
             "\tpublic static void AddModels(this IServiceCollection services, IConfiguration configuration)\n\t{");
         stream.WriteLine($"\t\tservices.AddDbContext<{databaseName}Context>(options =>\n\t\t{{");
-        stream.WriteLine($"\t\t\t{_addServiceCommand[_stringToEnum[provider]]}");
+        stream.WriteLine($"\t\t\t{AddServiceCommand[StringToEnum[provider]]}");
         stream.WriteLine("\t\t}, contextLifetime: ServiceLifetime.Transient);");
         stream.WriteLine("\t}");
         stream.WriteLine("}");

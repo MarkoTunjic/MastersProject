@@ -1,12 +1,15 @@
+using GrpcGenerator.Utils;
+
 namespace GrpcGenerator.Generators.DtoGenerators.Impl;
 
 public class DotNetDtoGenerator : IDtoGenerator
 {
-    public void GenerateDtos(string pathToModels, string destinationDirectory, string databaseName, string packageName)
+    public void GenerateDtos(string pathToModels, string destinationDirectory, string uuid, string packageName)
     {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         foreach (var file in Directory.EnumerateFiles(pathToModels))
         {
-            if (file.EndsWith($"{databaseName}Context.cs"))
+            if (file.EndsWith($"{generatorVariables.DatabaseConnection.DatabaseName}Context.cs"))
                 continue;
             var className =
                 $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}Dto";
