@@ -81,7 +81,10 @@ registerServices.DoAdditionalAction($"{config["sourceCodeRoot"]}/{guid}/{newSolu
     newProjectName);
 
 IRepositoryGenerator repositoryGenerator = new DotNetRepositoryGenerator();
-repositoryGenerator.GenerateRepositories("", guid);
+Directory.CreateDirectory(
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Infrastructure/Repositories");
+repositoryGenerator.GenerateRepositories(guid,
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Infrastructure/Repositories");
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
