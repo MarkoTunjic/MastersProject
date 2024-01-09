@@ -37,7 +37,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var createMethod = GetCreateMethodCode(modelName);
-        var deleteMethod = GetDeleteMethodCode(modelName);
+        var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
         var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
@@ -90,11 +90,16 @@ public class {modelName}Repository : I{modelName}Repository
     }}";
     }
 
-    public string GetDeleteMethodCode(string modelName)
+    public string GetDeleteMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public void Delete{modelName}({modelName} toBeDeleted{modelName})
+        return $@"public void Delete{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        _dbContext.{modelName}s.Remove(toBeDeleted{modelName});
+        var tbd = Find{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        if(tbd == null)
+        {{
+            return;
+        }}
+        _dbContext.{modelName}s.Remove(tbd);
         _dbContext.SaveChanges();
     }}";
     }
@@ -109,7 +114,7 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public {modelName}? Find{modelName}ById({GetMethodInput(primaryKeys)})
+        return $@"public {modelName}? Find{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
         return _dbContext.{modelName}s.SingleOrDefault(x => {GetPrimaryKeyQuery(primaryKeys, "", true)});
     }}";
@@ -155,14 +160,28 @@ public class {modelName}Repository : I{modelName}Repository
         return primaryKeyQuery;
     }
 
-    private static string GetMethodInput(IReadOnlyDictionary<string, Type> primaryKeys)
+    private static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call)
     {
         var result = "";
         var i = 0;
         foreach (var entry in primaryKeys)
         {
             if (i != 0) result += ", ";
-            result += $"{entry.Value} {char.ToLower(entry.Key[0]) + entry.Key[1..]}";
+            result += $"{(call ? "" : entry.Value + " ")}{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
+            i++;
+        }
+
+        return result;
+    }
+
+    private static string GetMethodCallForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys)
+    {
+        var result = "";
+        var i = 0;
+        foreach (var entry in primaryKeys)
+        {
+            if (i != 0) result += ", ";
+            result += $"{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
             i++;
         }
 
