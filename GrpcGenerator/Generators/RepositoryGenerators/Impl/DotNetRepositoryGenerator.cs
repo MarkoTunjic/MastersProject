@@ -55,6 +55,11 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         throw new NotImplementedException();
     }
 
+    public string GetUpdateMethodCode(string modelName)
+    {
+        throw new NotImplementedException();
+    }
+
 
     private static string GetDotnetNameFromSqlName(string sqlName)
     {

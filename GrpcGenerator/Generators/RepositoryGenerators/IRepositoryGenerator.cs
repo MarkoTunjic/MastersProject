@@ -8,4 +8,5 @@ public interface IRepositoryGenerator
     public string GetDeleteMethodCode(string modelName, string[] primaryKeys);
     public string GetReadAllMethodCode(string modelName);
     public string GetFindByIdMethodCode(string modelName, string[] primaryKeys);
+    public string GetUpdateMethodCode(string modelName);
 }
