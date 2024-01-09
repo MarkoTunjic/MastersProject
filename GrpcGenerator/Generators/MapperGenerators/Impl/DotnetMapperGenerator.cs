@@ -1,10 +1,16 @@
+using GrpcGenerator.Utils;
+
 namespace GrpcGenerator.Generators.MapperGenerators.Impl;
 
 public class DotnetMapperGenerator : IMapperGenerator
 {
-    public void GenerateMappers(string pathToDtos, string targetDirectory, string targetPackage, string modelsPackage,
-        string dtoPackage)
+    public void GenerateMappers(string uuid, string targetPackage, string modelsPackage, string dtoPackage)
     {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var targetDirectory = $"{generatorVariables.ProjectDirectory}/Domain/Mappers";
+        Directory.CreateDirectory(targetDirectory);
+        var pathToDtos = $"{generatorVariables.ProjectDirectory}/Domain/Dto";
+
         using var stream = new StreamWriter(File.Create($"{targetDirectory}/MapperRegistration.cs"));
 
         stream.WriteLine($"using {modelsPackage};");

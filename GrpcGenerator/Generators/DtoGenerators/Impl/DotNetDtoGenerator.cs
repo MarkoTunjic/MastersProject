@@ -4,9 +4,12 @@ namespace GrpcGenerator.Generators.DtoGenerators.Impl;
 
 public class DotNetDtoGenerator : IDtoGenerator
 {
-    public void GenerateDtos(string pathToModels, string destinationDirectory, string uuid, string packageName)
+    public void GenerateDtos(string uuid, string packageName)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var destinationDirectory = $"{generatorVariables.ProjectDirectory}/Domain/Dto";
+        Directory.CreateDirectory(destinationDirectory);
+        var pathToModels = $"{generatorVariables.ProjectDirectory}/Domain/Models";
         foreach (var file in Directory.EnumerateFiles(pathToModels))
         {
             if (file.EndsWith($"{generatorVariables.DatabaseConnection.DatabaseName}Context.cs"))

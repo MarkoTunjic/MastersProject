@@ -6,9 +6,11 @@ namespace GrpcGenerator.Generators.RepositoryGenerators.Impl;
 
 public class DotNetRepositoryGenerator : IRepositoryGenerator
 {
-    public void GenerateRepositories(string uuid, string targetDirectory)
+    public void GenerateRepositories(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var targetDirectory = $"{generatorVariables.ProjectDirectory}/Infrastructure/Repositories";
+        Directory.CreateDirectory(targetDirectory);
         var conn = new NpgsqlConnection(
             $"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd};");
         Directory.CreateDirectory($"{targetDirectory}/Impl");
@@ -22,8 +24,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
             var primaryKeys = adapter
                 .FillSchema(table, SchemaType.Mapped)
                 ?.PrimaryKey
-                .Select(c => GetDotnetNameFromSqlName(c.ColumnName))
-                .ToArray()!;
+                .ToDictionary(c => GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
             var modelName = GetDotnetNameFromSqlName(tableName);
             GenerateRepository(uuid, modelName, primaryKeys, targetDirectory);
         }
@@ -31,30 +32,31 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         conn.Close();
     }
 
-    public void GenerateRepository(string uuid, string modelName, string[] primaryKeys, string targetDirectory)
+    public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+        string targetDirectory)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var createMethod = GetCreateMethodCode(modelName);
-        var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
-        var readAllMethod = GetReadAllMethodCode(modelName);
+        var deleteMethod = GetDeleteMethodCode(modelName);
+        var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
-        var updateMethod = GetUpdateMethodCode(modelName);
+        var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Repository.cs"));
-        interfaceStream.Write($@"
-using Domain.Models;
+        interfaceStream.Write($@"using Domain.Models;
 
 namespace {generatorVariables.ProjectName}.Infrastructure.Repositories;
 public interface I{modelName}Repository
 {{
     {createMethod[..createMethod.IndexOf("\n", StringComparison.Ordinal)]};
-    {deleteMethod[..deleteMethod.IndexOf("", StringComparison.Ordinal)]};
-    {readAllMethod[..readAllMethod.IndexOf("", StringComparison.Ordinal)]};
-    {findById[..findById.IndexOf("", StringComparison.Ordinal)]};
-    {updateMethod[..updateMethod.IndexOf("", StringComparison.Ordinal)]};
+    {deleteMethod[..deleteMethod.IndexOf("\n", StringComparison.Ordinal)]};
+    {readAllMethod[..readAllMethod.IndexOf("\n", StringComparison.Ordinal)]};
+    {findById[..findById.IndexOf("\n", StringComparison.Ordinal)]};
+    {updateMethod[..updateMethod.IndexOf("\n", StringComparison.Ordinal)]};
 }}
 ");
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Repository.cs"));
-        classStream.Write($@"
+        classStream.Write($@"using Domain.Models;
+
 namespace {generatorVariables.ProjectName}.Infrastructure.Repositories.Impl;
 public class {modelName}Repository : I{modelName}Repository
 {{
@@ -66,9 +68,13 @@ public class {modelName}Repository : I{modelName}Repository
     }}
     
     {createMethod}
+
     {deleteMethod}
+
     {readAllMethod}
+
     {findById}
+
     {updateMethod}
 }}
 ");
@@ -76,31 +82,47 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public List<{modelName}> Create{modelName}({modelName} new{modelName})
+        return $@"public {modelName} Create{modelName}({modelName} new{modelName})
     {{
-        return _dbContext.{modelName}.ToList();
+        _dbContext.Add(new{modelName});
+        _dbContext.SaveChanges();
+        return new{modelName};
+    }}";
+    }
+
+    public string GetDeleteMethodCode(string modelName)
+    {
+        return $@"public void Delete{modelName}({modelName} toBeDeleted{modelName})
+    {{
+        _dbContext.{modelName}s.Remove(toBeDeleted{modelName});
+        _dbContext.SaveChanges();
+    }}";
+    }
+
+    public string GetFindAllMethodCode(string modelName)
+    {
+        return $@"public List<{modelName}> FindAll{modelName}()
+    {{
+        return _dbContext.{modelName}s.ToList();
+    }}";
+    }
+
+    public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
+    {
+        return $@"public {modelName}? Find{modelName}ById({GetMethodInput(primaryKeys)})
+    {{
+        return _dbContext.{modelName}s.SingleOrDefault(x => {GetPrimaryKeyQuery(primaryKeys, "", true)});
+    }}";
+    }
+
+    public string GetUpdateMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
+    {
+        return $@"public void Update{modelName}({modelName} updated{modelName})
+    {{
+        _dbContext.Entry(_dbContext.{modelName}s.FirstOrDefault(x => {GetPrimaryKeyQuery(primaryKeys, $"updated{modelName}", false)})).CurrentValues.SetValues(updated{modelName});
+        _dbContext.SaveChanges();
     }}
 ";
-    }
-
-    public string GetDeleteMethodCode(string modelName, string[] primaryKeys)
-    {
-        return "";
-    }
-
-    public string GetReadAllMethodCode(string modelName)
-    {
-        return "";
-    }
-
-    public string GetFindByIdMethodCode(string modelName, string[] primaryKeys)
-    {
-        return "";
-    }
-
-    public string GetUpdateMethodCode(string modelName)
-    {
-        return "";
     }
 
 
@@ -111,6 +133,37 @@ public class {modelName}Repository : I{modelName}Repository
         {
             var firstLetter = char.ToUpper(part[0]);
             result += firstLetter + part[1..];
+        }
+
+        if (char.ToLower(result[^1]) == 's') result = result[..^1];
+        return result;
+    }
+
+    private static string GetPrimaryKeyQuery(IReadOnlyDictionary<string, Type> primaryKeys, string inputPrefix,
+        bool lower)
+    {
+        var primaryKeyQuery = "";
+        var i = 0;
+        foreach (var entry in primaryKeys)
+        {
+            if (i != 0) primaryKeyQuery += " && ";
+            primaryKeyQuery +=
+                $"x.{entry.Key} == {inputPrefix}{(lower ? $"{char.ToLower(entry.Key[0])}{entry.Key[1..]}" : $".{entry.Key}")}";
+            i++;
+        }
+
+        return primaryKeyQuery;
+    }
+
+    private static string GetMethodInput(IReadOnlyDictionary<string, Type> primaryKeys)
+    {
+        var result = "";
+        var i = 0;
+        foreach (var entry in primaryKeys)
+        {
+            if (i != 0) result += ", ";
+            result += $"{entry.Value} {char.ToLower(entry.Key[0]) + entry.Key[1..]}";
+            i++;
         }
 
         return result;

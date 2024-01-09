@@ -41,33 +41,27 @@ var databasePort = "5432";
 var databaseUid = "postgres";
 var databasePwd = "bazepodataka";
 var provider = "postgres";
-
+var projectRoot = $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}";
 var generatorVariables =
     new GeneratorVariables(
         new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid, provider),
-        newProjectName, newSolutionName);
+        newProjectName, newSolutionName, projectRoot);
 GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
 ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolutionName, oldProjectName,
     guid);
 
-IModelGenerator modelGenerator = new EfCoreModelGenerator();
-Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain");
 ServicesProvider.SetServices(services.BuildServiceProvider());
-modelGenerator.GenerateModels(guid, $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain");
+
+IModelGenerator modelGenerator = new EfCoreModelGenerator();
+modelGenerator.GenerateModels(guid);
 
 IDtoGenerator dtoGenerator = new DotNetDtoGenerator();
-Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto");
-dtoGenerator.GenerateDtos($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Models",
-    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto", guid,
-    $"{newProjectName}.Domain.Dto");
+dtoGenerator.GenerateDtos(guid, $"{newProjectName}.Domain.Dto");
 
 IMapperGenerator mapperGenerator = new DotnetMapperGenerator();
-Directory.CreateDirectory($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers");
-mapperGenerator.GenerateMappers($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Dto",
-    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Domain/Mappers",
-    $"{newProjectName}.Domain.Mappers",
-    "Domain.Models", $"{newProjectName}.Domain.Dto");
+mapperGenerator.GenerateMappers(guid, $"{newProjectName}.Domain.Mappers", "Domain.Models",
+    $"{newProjectName}.Domain.Dto");
 
 IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
 dependencyGenerator.GenerateDependencies(
@@ -77,16 +71,12 @@ IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
 databaseConfigGenerator.GenerateConfig($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}", guid);
 
 IAdditionalAction registerServices = new RegisterServicesAdditionalAction();
-registerServices.DoAdditionalAction($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}",
-    newProjectName);
+registerServices.DoAdditionalAction(guid);
 
 IRepositoryGenerator repositoryGenerator = new DotNetRepositoryGenerator();
-Directory.CreateDirectory(
-    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Infrastructure/Repositories");
-repositoryGenerator.GenerateRepositories(guid,
-    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/Infrastructure/Repositories");
+repositoryGenerator.GenerateRepositories(guid);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
 
-Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);
+//Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);

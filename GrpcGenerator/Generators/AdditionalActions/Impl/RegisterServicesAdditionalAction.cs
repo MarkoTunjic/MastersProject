@@ -1,14 +1,17 @@
+using GrpcGenerator.Utils;
+
 namespace GrpcGenerator.Generators.AdditionalActions.Impl;
 
 public class RegisterServicesAdditionalAction : IAdditionalAction
 {
-    public void DoAdditionalAction(string projectRoot, string projectName)
+    public void DoAdditionalAction(string uuid)
     {
-        var lines = new List<string>(File.ReadLines(projectRoot + "/Program.cs"));
-        lines.Insert(0, $"using {projectName}.Domain.Mappers;");
-        lines.Insert(1, $"using {projectName}.Domain;");
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var lines = new List<string>(File.ReadLines(generatorVariables.ProjectDirectory + "/Program.cs"));
+        lines.Insert(0, $"using {generatorVariables.ProjectName}.Domain.Mappers;");
+        lines.Insert(1, $"using {generatorVariables.ProjectName}.Domain;");
         lines.Insert(3, "builder.Services.AddMappers();");
         lines.Insert(4, "builder.Services.AddModels(builder.Configuration);");
-        File.WriteAllLines(projectRoot + "/Program.cs", lines);
+        File.WriteAllLines(generatorVariables.ProjectDirectory + "/Program.cs", lines);
     }
 }

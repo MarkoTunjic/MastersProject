@@ -22,9 +22,11 @@ public class EfCoreModelGenerator : IModelGenerator
         }
     };
 
-    public void GenerateModels(string uuid, string destinationFolder)
+    public void GenerateModels(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var destinationFolder = $"{generatorVariables.ProjectDirectory}/Domain";
+        Directory.CreateDirectory(destinationFolder);
         var process = new Process();
         process.StartInfo.WorkingDirectory = destinationFolder;
         process.StartInfo.FileName = "efcpt";
