@@ -6,4 +6,5 @@ public static class NamespaceNames
     public const string MappersNamespace = "Domain.Mappers";
     public const string DtoNamespace = "Domain.Dto";
     public const string RepositoryNamespace = "Infrastructure.Repositories";
+    public const string UnitOfWorkNamespace = "Infrastructure.Utils";
 }

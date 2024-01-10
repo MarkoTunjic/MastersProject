@@ -37,6 +37,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         }
 
         conn.Close();
+        GenerateUnitOfWork(uuid, modelNames);
     }
 
     public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
@@ -161,5 +162,52 @@ public class {modelName}Repository : I{modelName}Repository
         }
 
         return result;
+    }
+
+    private static void GenerateUnitOfWork(string uuid, List<string> modelNames)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Infrastructure/Utils");
+        using var interfaceStream =
+            new StreamWriter(
+                File.Create($"{generatorVariables.ProjectDirectory}/Infrastructure/Utils/IUnitOfWork.cs"));
+        interfaceStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace};
+
+namespace {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
+public interface IUnitOfWork
+{{
+");
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Infrastructure/Utils/Impl");
+        using var classStream =
+            new StreamWriter(File.Create(
+                $"{generatorVariables.ProjectDirectory}/Infrastructure/Utils/Impl/DependencyInjectionUnitOfWork.cs"));
+        classStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
+
+namespace {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace}.Impl;
+public class DependencyInjectionUnitOfWork : IUnitOfWork
+{{
+    public DependencyInjectionUnitOfWork(");
+        var i = 0;
+        foreach (var modelName in modelNames)
+        {
+            interfaceStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
+            if (i != 0)
+                classStream.Write(", ");
+            classStream.Write($"I{modelName}Repository {char.ToLower(modelName[0]) + modelName[1..]}Repository");
+            i++;
+        }
+
+        classStream.Write(")");
+        classStream.WriteLine("\n\t{");
+        interfaceStream.Write("}");
+
+        foreach (var modelName in modelNames)
+            classStream.WriteLine(
+                $"\t\t{modelName}Repository = {char.ToLower(modelName[0]) + modelName[1..]}Repository;");
+        classStream.WriteLine("\t}");
+        foreach (var modelName in modelNames)
+            classStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
+        classStream.WriteLine("}");
     }
 }
