@@ -20,6 +20,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         File.WriteAllText($"{targetDirectory}/Common/CrudOperations.cs", crudOperations);
         conn.Open();
         var allTablesSchemaTable = conn.GetSchema("Tables");
+        var modelNames = new List<string>();
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
         {
             var tableName = (string)tableInfo.ItemArray[2]!;
@@ -30,8 +31,9 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
                 ?.PrimaryKey
                 .ToDictionary(c => GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
             var modelName = GetDotnetNameFromSqlName(tableName);
-            if (models.Any(file => file.EndsWith($"{modelName}.cs")))
-                GenerateRepository(uuid, modelName, primaryKeys, targetDirectory);
+            if (!models.Any(file => file.EndsWith($"{modelName}.cs"))) continue;
+            GenerateRepository(uuid, modelName, primaryKeys, targetDirectory);
+            modelNames.Add(modelName);
         }
 
         conn.Close();
@@ -147,22 +149,6 @@ public class {modelName}Repository : I{modelName}Repository
         return result;
     }
 
-    private static string GetPrimaryKeyQuery(IReadOnlyDictionary<string, Type> primaryKeys, string inputPrefix,
-        bool lower)
-    {
-        var primaryKeyQuery = "";
-        var i = 0;
-        foreach (var entry in primaryKeys)
-        {
-            if (i != 0) primaryKeyQuery += " && ";
-            primaryKeyQuery +=
-                $"x.{entry.Key} == {inputPrefix}{(lower ? $"{char.ToLower(entry.Key[0])}{entry.Key[1..]}" : $".{entry.Key}")}";
-            i++;
-        }
-
-        return primaryKeyQuery;
-    }
-
     private static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call)
     {
         var result = "";
@@ -171,20 +157,6 @@ public class {modelName}Repository : I{modelName}Repository
         {
             if (i != 0) result += ", ";
             result += $"{(call ? "" : entry.Value + " ")}{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
-            i++;
-        }
-
-        return result;
-    }
-
-    private static string GetMethodCallForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys)
-    {
-        var result = "";
-        var i = 0;
-        foreach (var entry in primaryKeys)
-        {
-            if (i != 0) result += ", ";
-            result += $"{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
             i++;
         }
 
