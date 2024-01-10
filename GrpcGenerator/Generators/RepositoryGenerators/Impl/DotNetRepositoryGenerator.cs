@@ -38,6 +38,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
 
         conn.Close();
         GenerateUnitOfWork(uuid, modelNames);
+        GenerateInfrastructureServiceRegistration(uuid, modelNames);
     }
 
     public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
@@ -209,5 +210,30 @@ public class DependencyInjectionUnitOfWork : IUnitOfWork
         foreach (var modelName in modelNames)
             classStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
         classStream.WriteLine("}");
+    }
+
+    private static void GenerateInfrastructureServiceRegistration(string uuid, List<string> modelNames)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        using var stream =
+            new StreamWriter(
+                File.Create(
+                    $"{generatorVariables.ProjectDirectory}/Infrastructure/InfrastructureServiceRegistration.cs"));
+        stream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Impl;
+using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace}.Impl;
+
+namespace {generatorVariables.ProjectName}.Infrastructure;
+public static class InfrastructureServiceRegistration
+{{
+    public static void AddInfrastructure(this IServiceCollection services)
+    {{
+        services.AddTransient<IUnitOfWork,DependencyInjectionUnitOfWork>();
+");
+        foreach (var modelName in modelNames)
+            stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Repository, {modelName}Repository>();");
+        stream.WriteLine("\t}");
+        stream.WriteLine("}");
     }
 }
