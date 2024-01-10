@@ -57,11 +57,10 @@ IModelGenerator modelGenerator = new EfCoreModelGenerator();
 modelGenerator.GenerateModels(guid);
 
 IDtoGenerator dtoGenerator = new DotNetDtoGenerator();
-dtoGenerator.GenerateDtos(guid, $"{newProjectName}.Domain.Dto");
+dtoGenerator.GenerateDtos(guid);
 
 IMapperGenerator mapperGenerator = new DotnetMapperGenerator();
-mapperGenerator.GenerateMappers(guid, $"{newProjectName}.Domain.Mappers", "Domain.Models",
-    $"{newProjectName}.Domain.Dto");
+mapperGenerator.GenerateMappers(guid);
 
 IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
 dependencyGenerator.GenerateDependencies(
@@ -79,4 +78,4 @@ repositoryGenerator.GenerateRepositories(guid);
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
 
-Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);
+//Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);

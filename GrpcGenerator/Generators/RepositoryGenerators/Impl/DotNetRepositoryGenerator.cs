@@ -1,4 +1,5 @@
 using System.Data;
+using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 using Npgsql;
 
@@ -10,10 +11,13 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Infrastructure/Repositories";
-        Directory.CreateDirectory(targetDirectory);
         var conn = new NpgsqlConnection(
             $"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd};");
         Directory.CreateDirectory($"{targetDirectory}/Impl");
+        var models = Directory.GetFiles($"{generatorVariables.ProjectDirectory}/Domain/Models");
+        var crudOperations = File.ReadAllText($"{targetDirectory}/Common/CrudOperations.cs");
+        crudOperations = crudOperations.Replace("{ProjectName}", generatorVariables.ProjectName);
+        File.WriteAllText($"{targetDirectory}/Common/CrudOperations.cs", crudOperations);
         conn.Open();
         var allTablesSchemaTable = conn.GetSchema("Tables");
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
@@ -26,7 +30,8 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
                 ?.PrimaryKey
                 .ToDictionary(c => GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
             var modelName = GetDotnetNameFromSqlName(tableName);
-            GenerateRepository(uuid, modelName, primaryKeys, targetDirectory);
+            if (models.Any(file => file.EndsWith($"{modelName}.cs")))
+                GenerateRepository(uuid, modelName, primaryKeys, targetDirectory);
         }
 
         conn.Close();
@@ -42,22 +47,23 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
         var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Repository.cs"));
-        interfaceStream.Write($@"using Domain.Models;
+        interfaceStream.Write($@"using {NamespaceNames.ModelsNamespace};
 
-namespace {generatorVariables.ProjectName}.Infrastructure.Repositories;
+namespace {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace};
 public interface I{modelName}Repository
 {{
-    {createMethod[..createMethod.IndexOf("\n", StringComparison.Ordinal)]};
-    {deleteMethod[..deleteMethod.IndexOf("\n", StringComparison.Ordinal)]};
-    {readAllMethod[..readAllMethod.IndexOf("\n", StringComparison.Ordinal)]};
-    {findById[..findById.IndexOf("\n", StringComparison.Ordinal)]};
-    {updateMethod[..updateMethod.IndexOf("\n", StringComparison.Ordinal)]};
+    {createMethod[..createMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {deleteMethod[..deleteMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {readAllMethod[..readAllMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {findById[..findById.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {updateMethod[..updateMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
 }}
 ");
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Repository.cs"));
-        classStream.Write($@"using Domain.Models;
+        classStream.Write($@"using {NamespaceNames.ModelsNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Common;
 
-namespace {generatorVariables.ProjectName}.Infrastructure.Repositories.Impl;
+namespace {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Impl;
 public class {modelName}Repository : I{modelName}Repository
 {{
     private readonly {generatorVariables.DatabaseConnection.DatabaseName}Context _dbContext;
@@ -82,50 +88,47 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public {modelName} Create{modelName}({modelName} new{modelName})
+        return $@"public async Task<{modelName}> CreateAsync{modelName}({modelName} new{modelName})
     {{
-        _dbContext.Add(new{modelName});
-        _dbContext.SaveChanges();
-        return new{modelName};
+        return await CrudOperations.CreateAsync(new{modelName}, _dbContext);
     }}";
     }
 
     public string GetDeleteMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public void Delete{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, false)})
+        return $@"public async Task Delete{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        var tbd = Find{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        var tbd = await Find{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, true)});
         if(tbd == null)
         {{
             return;
         }}
-        _dbContext.{modelName}s.Remove(tbd);
-        _dbContext.SaveChanges();
+        await CrudOperations.DeleteAsync(tbd, _dbContext);
     }}";
     }
 
     public string GetFindAllMethodCode(string modelName)
     {
-        return $@"public List<{modelName}> FindAll{modelName}()
+        return $@"public async Task<List<{modelName}>> FindAllAsync{modelName}()
     {{
-        return _dbContext.{modelName}s.ToList();
+        return await CrudOperations.FindAllAsync<{modelName}>(_dbContext);
     }}";
     }
 
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public {modelName}? Find{modelName}ById({GetMethodInputForPrimaryKeys(primaryKeys, false)})
+        return
+            $@"public async Task<{modelName}?> Find{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        return _dbContext.{modelName}s.SingleOrDefault(x => {GetPrimaryKeyQuery(primaryKeys, "", true)});
+        return await CrudOperations.FindByIdAsync<{modelName}>(_dbContext, {GetMethodInputForPrimaryKeys(primaryKeys, true)});
     }}";
     }
 
     public string GetUpdateMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public void Update{modelName}({modelName} updated{modelName})
+        return $@"public async Task Update{modelName}({modelName} updated{modelName})
     {{
-        _dbContext.Entry(_dbContext.{modelName}s.FirstOrDefault(x => {GetPrimaryKeyQuery(primaryKeys, $"updated{modelName}", false)})).CurrentValues.SetValues(updated{modelName});
-        _dbContext.SaveChanges();
+        await CrudOperations.UpdateAsync(updated{modelName}, _dbContext);
     }}
 ";
     }

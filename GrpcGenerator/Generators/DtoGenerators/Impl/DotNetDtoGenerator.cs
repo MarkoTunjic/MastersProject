@@ -1,12 +1,14 @@
+using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
 namespace GrpcGenerator.Generators.DtoGenerators.Impl;
 
 public class DotNetDtoGenerator : IDtoGenerator
 {
-    public void GenerateDtos(string uuid, string packageName)
+    public void GenerateDtos(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var packageName = $"{generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace}";
         var destinationDirectory = $"{generatorVariables.ProjectDirectory}/Domain/Dto";
         Directory.CreateDirectory(destinationDirectory);
         var pathToModels = $"{generatorVariables.ProjectDirectory}/Domain/Models";

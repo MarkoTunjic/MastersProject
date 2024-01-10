@@ -45,7 +45,7 @@ public class EfCoreModelGenerator : IModelGenerator
         using var stream = new StreamWriter(File.Create($"{targetDirectory}/ModelServiceRegistration.cs"));
 
         stream.WriteLine("using Microsoft.EntityFrameworkCore;");
-        stream.WriteLine("using Domain.Models;\n");
+        stream.WriteLine($"using {NamespaceNames.ModelsNamespace};\n");
         stream.WriteLine($"namespace {projectName}.Domain;");
         stream.WriteLine("public static class ModelServiceRegistration\n{");
         stream.WriteLine(

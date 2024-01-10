@@ -1,10 +1,11 @@
+using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
 namespace GrpcGenerator.Generators.MapperGenerators.Impl;
 
 public class DotnetMapperGenerator : IMapperGenerator
 {
-    public void GenerateMappers(string uuid, string targetPackage, string modelsPackage, string dtoPackage)
+    public void GenerateMappers(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Domain/Mappers";
@@ -13,10 +14,10 @@ public class DotnetMapperGenerator : IMapperGenerator
 
         using var stream = new StreamWriter(File.Create($"{targetDirectory}/MapperRegistration.cs"));
 
-        stream.WriteLine($"using {modelsPackage};");
-        stream.WriteLine($"using {dtoPackage};");
+        stream.WriteLine($"using {NamespaceNames.ModelsNamespace};");
+        stream.WriteLine($"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};");
         stream.WriteLine("using AutoMapper;");
-        stream.WriteLine($"\nnamespace {targetPackage};");
+        stream.WriteLine($"\nnamespace {generatorVariables.ProjectName}.{NamespaceNames.MappersNamespace};");
         stream.WriteLine("public class MapperRegistration : Profile \n{");
         stream.WriteLine("\tpublic MapperRegistration() \n\t{");
 
@@ -32,7 +33,8 @@ public class DotnetMapperGenerator : IMapperGenerator
 
         stream.WriteLine("\t}");
         stream.WriteLine("}");
-        GenerateMapperServiceRegistration(targetDirectory, targetPackage);
+        GenerateMapperServiceRegistration(targetDirectory,
+            $"{generatorVariables.ProjectName}.{NamespaceNames.MappersNamespace}");
     }
 
     private static void GenerateMapperServiceRegistration(string targetDirectory, string targetPackage)

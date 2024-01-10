@@ -2,5 +2,5 @@ namespace GrpcGenerator.Generators.DtoGenerators;
 
 public interface IDtoGenerator
 {
-    public void GenerateDtos(string uuid, string packageName);
+    public void GenerateDtos(string uuid);
 }
