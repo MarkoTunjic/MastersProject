@@ -55,6 +55,13 @@ ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolu
 
 ServicesProvider.SetServices(services.BuildServiceProvider());
 
+IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
+dependencyGenerator.GenerateDependencies(
+    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/{newProjectName}.csproj");
+
+IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
+databaseConfigGenerator.GenerateConfig($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}", guid);
+
 IModelGenerator modelGenerator = new EfCoreModelGenerator();
 modelGenerator.GenerateModels(guid);
 
@@ -63,13 +70,6 @@ dtoGenerator.GenerateDtos(guid);
 
 IMapperGenerator mapperGenerator = new DotnetMapperGenerator();
 mapperGenerator.GenerateMappers(guid);
-
-IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
-dependencyGenerator.GenerateDependencies(
-    $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/{newProjectName}.csproj");
-
-IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
-databaseConfigGenerator.GenerateConfig($"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}", guid);
 
 IAdditionalAction registerServices = new RegisterServicesAdditionalAction();
 registerServices.DoAdditionalAction(guid);
