@@ -43,4 +43,18 @@ public static class DatabaseSchemaUtils
         conn.Close();
         return modelNames;
     }
+
+    public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call)
+    {
+        var result = "";
+        var i = 0;
+        foreach (var entry in primaryKeys)
+        {
+            if (i != 0) result += ", ";
+            result += $"{(call ? "" : entry.Value + " ")}{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
+            i++;
+        }
+
+        return result;
+    }
 }

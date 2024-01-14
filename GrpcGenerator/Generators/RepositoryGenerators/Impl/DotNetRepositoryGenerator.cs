@@ -75,7 +75,7 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public async Task<{modelName}> CreateAsync{modelName}({modelName} new{modelName})
+        return $@"public async Task<{modelName}> Create{modelName}Async({modelName} new{modelName})
     {{
         return await CrudOperations.CreateAsync(new{modelName}, _dbContext);
     }}";
@@ -83,9 +83,10 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetDeleteMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public async Task Delete{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, false)})
+        return
+            $@"public async Task Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        var tbd = await Find{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        var tbd = await Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
         if(tbd == null)
         {{
             return;
@@ -96,7 +97,7 @@ public class {modelName}Repository : I{modelName}Repository
 
     public string GetFindAllMethodCode(string modelName)
     {
-        return $@"public async Task<List<{modelName}>> FindAllAsync{modelName}()
+        return $@"public async Task<List<{modelName}>> FindAll{modelName}Async()
     {{
         return await CrudOperations.FindAllAsync<{modelName}>(_dbContext);
     }}";
@@ -105,33 +106,18 @@ public class {modelName}Repository : I{modelName}Repository
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
         return
-            $@"public async Task<{modelName}?> Find{modelName}ByIdAsync({GetMethodInputForPrimaryKeys(primaryKeys, false)})
+            $@"public async Task<{modelName}?> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        return await CrudOperations.FindByIdAsync<{modelName}>(_dbContext, {GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        return await CrudOperations.FindByIdAsync<{modelName}>(_dbContext, {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
     }}";
     }
 
     public string GetUpdateMethodCode(string modelName)
     {
-        return $@"public async Task Update{modelName}({modelName} updated{modelName})
+        return $@"public async Task Update{modelName}Async({modelName} updated{modelName})
     {{
         await CrudOperations.UpdateAsync(updated{modelName}, _dbContext);
-    }}
-";
-    }
-
-    private static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call)
-    {
-        var result = "";
-        var i = 0;
-        foreach (var entry in primaryKeys)
-        {
-            if (i != 0) result += ", ";
-            result += $"{(call ? "" : entry.Value + " ")}{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
-            i++;
-        }
-
-        return result;
+    }}";
     }
 
     private static void GenerateUnitOfWork(string uuid, List<string> modelNames)

@@ -13,6 +13,8 @@ using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Generators.RepositoryGenerators;
 using GrpcGenerator.Generators.RepositoryGenerators.Impl;
+using GrpcGenerator.Generators.ServiceGenerators;
+using GrpcGenerator.Generators.ServiceGenerators.Impl;
 using GrpcGenerator.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -74,6 +76,9 @@ registerServices.DoAdditionalAction(guid);
 
 IRepositoryGenerator repositoryGenerator = new DotNetRepositoryGenerator();
 repositoryGenerator.GenerateRepositories(guid);
+
+IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
+serviceGenerator.GenerateServices(guid);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
