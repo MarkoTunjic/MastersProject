@@ -29,6 +29,7 @@ public class DotNetServiceGenerator : IServiceGenerator
         var updateMethod = GetUpdateMethodCode(modelName);
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Service.cs"));
         interfaceStream.Write($@"using {NamespaceNames.ModelsNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
 public interface I{modelName}Service
@@ -43,15 +44,19 @@ public interface I{modelName}Service
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Service.cs"));
         classStream.Write($@"using {NamespaceNames.ModelsNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
+using AutoMapper;
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace}.Impl;
 public class {modelName}Service : I{modelName}Service
 {{
     private readonly IUnitOfWork _unitOfWork;
-    
-    public {modelName}Service(IUnitOfWork unitOfWork)
+    private readonly IMapper _mapper;
+
+    public {modelName}Service(IUnitOfWork unitOfWork, IMapper mapper)
     {{
         this._unitOfWork = unitOfWork;
+        this._mapper = mapper;
     }}
     
     {createMethod}
@@ -69,9 +74,9 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public async Task<{modelName}> Create{modelName}Async({modelName} new{modelName})
+        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName} new{modelName})
     {{
-        return await _unitOfWork.{modelName}Repository.Create{modelName}Async(new{modelName});
+        return _mapper.Map<{modelName}, {modelName}Dto>(await _unitOfWork.{modelName}Repository.Create{modelName}Async(new{modelName}));
     }}";
     }
 
@@ -86,18 +91,19 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetFindAllMethodCode(string modelName)
     {
-        return $@"public async Task<List<{modelName}>> FindAll{modelName}Async()
+        return $@"public async Task<List<{modelName}Dto>> FindAll{modelName}Async()
     {{
-        return await _unitOfWork.{modelName}Repository.FindAll{modelName}Async();
+        return _mapper.Map<List<{modelName}>, List<{modelName}Dto>>(await _unitOfWork.{modelName}Repository.FindAll{modelName}Async());
     }}";
     }
 
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
         return
-            $@"public async Task<{modelName}?> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
+            $@"public async Task<{modelName}Dto?> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        return await _unitOfWork.{modelName}Repository.Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        var result = await _unitOfWork.{modelName}Repository.Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        return result == null ? null : _mapper.Map<{modelName}, {modelName}Dto>(result);
     }}";
     }
 

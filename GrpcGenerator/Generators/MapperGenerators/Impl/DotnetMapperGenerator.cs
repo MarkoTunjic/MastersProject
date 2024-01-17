@@ -28,7 +28,8 @@ public class DotnetMapperGenerator : IMapperGenerator
                     (file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".",
                         StringComparison.Ordinal)];
             var modelName = dtoName[..dtoName.LastIndexOf("Dto", StringComparison.Ordinal)];
-            stream.WriteLine($"\t\tCreateMap<{modelName},{dtoName}>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}, {dtoName}>();");
+            stream.WriteLine($"\t\tCreateMap<{dtoName}, {modelName}>();");
         }
 
         stream.WriteLine("\t}");
