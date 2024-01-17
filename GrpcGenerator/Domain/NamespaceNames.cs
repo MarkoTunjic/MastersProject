@@ -8,4 +8,6 @@ public static class NamespaceNames
     public const string RepositoryNamespace = "Infrastructure.Repositories";
     public const string UnitOfWorkNamespace = "Infrastructure.Utils";
     public const string ServicesNamespace = "Application.Services";
+    public const string RequestsNamespace = "Domain.Request";
+
 }

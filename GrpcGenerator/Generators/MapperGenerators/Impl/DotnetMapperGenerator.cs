@@ -16,6 +16,7 @@ public class DotnetMapperGenerator : IMapperGenerator
 
         stream.WriteLine($"using {NamespaceNames.ModelsNamespace};");
         stream.WriteLine($"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};");
+        stream.WriteLine($"using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};");
         stream.WriteLine("using AutoMapper;");
         stream.WriteLine($"\nnamespace {generatorVariables.ProjectName}.{NamespaceNames.MappersNamespace};");
         stream.WriteLine("public class MapperRegistration : Profile \n{");
@@ -30,6 +31,8 @@ public class DotnetMapperGenerator : IMapperGenerator
             var modelName = dtoName[..dtoName.LastIndexOf("Dto", StringComparison.Ordinal)];
             stream.WriteLine($"\t\tCreateMap<{modelName}, {dtoName}>();");
             stream.WriteLine($"\t\tCreateMap<{dtoName}, {modelName}>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}, {modelName}Request>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}Request, {modelName}>();");
         }
 
         stream.WriteLine("\t}");

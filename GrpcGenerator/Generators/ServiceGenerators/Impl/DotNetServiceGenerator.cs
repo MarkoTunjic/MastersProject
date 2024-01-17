@@ -28,8 +28,8 @@ public class DotNetServiceGenerator : IServiceGenerator
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
         var updateMethod = GetUpdateMethodCode(modelName);
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Service.cs"));
-        interfaceStream.Write($@"using {NamespaceNames.ModelsNamespace};
-using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
+        interfaceStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
 public interface I{modelName}Service
@@ -45,6 +45,7 @@ public interface I{modelName}Service
         classStream.Write($@"using {NamespaceNames.ModelsNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
 using AutoMapper;
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace}.Impl;
@@ -74,9 +75,10 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName} new{modelName})
+        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}Request new{modelName})
     {{
-        return _mapper.Map<{modelName}, {modelName}Dto>(await _unitOfWork.{modelName}Repository.Create{modelName}Async(new{modelName}));
+        var model = _mapper.Map<{modelName}Request, {modelName}>(new{modelName});
+        return _mapper.Map<{modelName}, {modelName}Dto>(await _unitOfWork.{modelName}Repository.Create{modelName}Async(model));
     }}";
     }
 
@@ -109,9 +111,10 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetUpdateMethodCode(string modelName)
     {
-        return $@"public async Task Update{modelName}Async({modelName} updated{modelName})
+        return $@"public async Task Update{modelName}Async({modelName}Request updated{modelName})
     {{
-        await _unitOfWork.{modelName}Repository.Update{modelName}Async(updated{modelName});
+        var model = _mapper.Map<{modelName}Request, {modelName}>(updated{modelName});
+        await _unitOfWork.{modelName}Repository.Update{modelName}Async(model);
     }}";
     }
 

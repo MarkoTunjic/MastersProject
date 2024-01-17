@@ -11,21 +11,34 @@ public class DotNetDtoGenerator : IDtoGenerator
         var packageName = $"{generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace}";
         var destinationDirectory = $"{generatorVariables.ProjectDirectory}/Domain/Dto";
         Directory.CreateDirectory(destinationDirectory);
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Domain/Request");
         var pathToModels = $"{generatorVariables.ProjectDirectory}/Domain/Models";
         foreach (var file in Directory.EnumerateFiles(pathToModels))
         {
             if (file.EndsWith($"{generatorVariables.DatabaseConnection.DatabaseName}Context.cs"))
                 continue;
             var className =
-                $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}Dto";
-            using var stream = new StreamWriter(File.Create($"{destinationDirectory}/{className}.cs"));
-            stream.WriteLine($"namespace {packageName};");
-            stream.WriteLine($"\npublic class {className} \n{{");
+                $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}";
+            using var dtoStream = new StreamWriter(File.Create($"{destinationDirectory}/{className}Dto.cs"));
+            using var requestStream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Domain/Request/{className}Request.cs"));
+            
+            dtoStream.WriteLine($"namespace {packageName};");
+            dtoStream.WriteLine($"\npublic class {className}Dto \n{{");
+            
+            requestStream.WriteLine($"namespace {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};");
+            requestStream.WriteLine($"\npublic class {className}Request \n{{");
+            
             var variables = File.ReadLines(file).Where(line =>
                 line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
                 !line.Contains("virtual "));
-            foreach (var variable in variables) stream.WriteLine($"\t{variable.Trim()}");
-            stream.WriteLine("}");
+
+            foreach (var variable in variables)
+            {
+                dtoStream.WriteLine($"\t{variable.Trim()}");
+                requestStream.WriteLine($"\t{variable.Trim()}");
+            }
+            dtoStream.WriteLine("}");
+            requestStream.WriteLine("}");
         }
     }
 }
