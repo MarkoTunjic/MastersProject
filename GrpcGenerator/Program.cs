@@ -83,4 +83,4 @@ serviceGenerator.GenerateServices(guid);
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");
 
-//Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);
+Directory.Delete($"{config["sourceCodeRoot"]}/{guid}", true);
