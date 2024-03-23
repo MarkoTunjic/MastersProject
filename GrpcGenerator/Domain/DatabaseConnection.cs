@@ -19,4 +19,10 @@ public class DatabaseConnection
     public string DatabasePwd { get; set; }
     public string DatabaseUid { get; set; }
     public string Provider { get; set; }
+
+    public string ToConnectionString()
+    {
+        return
+            $"Server={DatabaseServer};Port={DatabasePort};Database={DatabaseName};Uid={DatabaseUid};Pwd={DatabasePwd};";
+    }
 }

@@ -13,7 +13,7 @@ public class DotNetServiceGenerator : IServiceGenerator
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Application/Services";
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
-            $"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd};",
+            generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys) => GenerateService(uuid, modelName, primaryKeys, targetDirectory));
         GenerateApplicationServiceRegistration(uuid, modelNames);
     }
@@ -26,7 +26,7 @@ public class DotNetServiceGenerator : IServiceGenerator
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
-        var updateMethod = GetUpdateMethodCode(modelName);
+        var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Service.cs"));
         interfaceStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
@@ -75,9 +75,9 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetCreateMethodCode(string modelName)
     {
-        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}Request new{modelName})
+        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName})
     {{
-        var model = _mapper.Map<{modelName}Request, {modelName}>(new{modelName});
+        var model = _mapper.Map<{modelName}WriteDto, {modelName}>(new{modelName});
         return _mapper.Map<{modelName}, {modelName}Dto>(await _unitOfWork.{modelName}Repository.Create{modelName}Async(model));
     }}";
     }
@@ -109,11 +109,12 @@ public class {modelName}Service : I{modelName}Service
     }}";
     }
 
-    public string GetUpdateMethodCode(string modelName)
+    public string GetUpdateMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public async Task Update{modelName}Async({modelName}Request updated{modelName})
+        return $@"public async Task Update{modelName}Async({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)}, {modelName}WriteDto updated{modelName})
     {{
-        var model = _mapper.Map<{modelName}Request, {modelName}>(updated{modelName});
+        var model = await _unitOfWork.{modelName}Repository.Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        model = _mapper.Map<{modelName}WriteDto, {modelName}>(updated{modelName}, model);
         await _unitOfWork.{modelName}Repository.Update{modelName}Async(model);
     }}";
     }

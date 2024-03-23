@@ -57,4 +57,33 @@ public static class DatabaseSchemaUtils
 
         return result;
     }
+
+    public static List<string> GetPrimaryKeysForModel(string provider,
+        string connectionString, string modelName)
+    {
+        var conn = ConnectionGetters[provider].Invoke(connectionString);
+        conn.Open();
+        var allTablesSchemaTable = conn.GetSchema("Tables");
+        List<string> result = new();
+        foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
+        {
+            var tableName = (string)tableInfo.ItemArray[2]!;
+            var model = StringUtils.GetDotnetNameFromSqlName(tableName);
+            if (model != modelName)
+            {
+                continue;
+            }
+            using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
+            using var table = new DataTable(tableName);
+            var primaryKeys = adapter
+                .FillSchema(table, SchemaType.Mapped)
+                ?.PrimaryKey
+                .Select(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName))
+                .ToList()!;
+            result.AddRange(primaryKeys);
+        }
+
+        conn.Close();
+        return result;
+    }
 }

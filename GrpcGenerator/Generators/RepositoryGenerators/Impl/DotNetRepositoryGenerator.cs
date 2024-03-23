@@ -18,7 +18,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         Directory.CreateDirectory($"{targetDirectory}/Impl");
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
-            $"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd};",
+            generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys) => GenerateRepository(uuid, modelName, primaryKeys, targetDirectory));
         GenerateUnitOfWork(uuid, modelNames);
         GenerateInfrastructureServiceRegistration(uuid, modelNames);

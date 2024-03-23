@@ -32,9 +32,18 @@ public class DotNetDtoGenerator : IDtoGenerator
                 line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
                 !line.Contains("virtual "));
 
+            var primaryKeys = DatabaseSchemaUtils.GetPrimaryKeysForModel(generatorVariables.DatabaseProvider,
+                generatorVariables.DatabaseConnection.ToConnectionString(), className)
+                .Select(StringUtils.GetDotnetNameFromSqlName)
+                .ToList();
             foreach (var variable in variables)
             {
                 dtoStream.WriteLine($"\t{variable.Trim()}");
+                var variableName = variable.Split(" ")[10];
+                if (primaryKeys.Contains(variableName))
+                {
+                    continue;
+                }
                 requestStream.WriteLine($"\t{variable.Trim()}");
             }
             dtoStream.WriteLine("}");

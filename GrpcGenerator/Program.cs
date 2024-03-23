@@ -47,7 +47,7 @@ var projectRoot = $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProj
 var generatorVariables =
     new GeneratorVariables(
         new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid, provider),
-        newProjectName, newSolutionName, projectRoot);
+        newProjectName, newSolutionName, projectRoot, provider);
 GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
 ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolutionName, oldProjectName,
