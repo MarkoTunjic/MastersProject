@@ -4,6 +4,18 @@ namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
 
 public class DotNetGrpcPresentationGenerator : IPresentationGenerator
 {
+    private static readonly Dictionary<Type, string> DotNetToGrpcType = new()
+    {
+        { typeof(int), "int32" },
+        { typeof(double), "double" },
+        { typeof(float), "float" },
+        { typeof(long), "int64" },
+        { typeof(uint), "uint32" },
+        { typeof(ulong), "uint64" },
+        { typeof(bool), "bool" },
+        { typeof(string), "string" }
+    };
+
     public void GeneratePresentation(string uuid)
     {
         GenerateProtofile(uuid);

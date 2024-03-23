@@ -20,13 +20,13 @@ public class DotNetDtoGenerator : IDtoGenerator
             var className =
                 $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}";
             using var dtoStream = new StreamWriter(File.Create($"{destinationDirectory}/{className}Dto.cs"));
-            using var requestStream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Domain/Request/{className}Request.cs"));
+            using var requestStream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Domain/Request/{className}WriteDto.cs"));
             
             dtoStream.WriteLine($"namespace {packageName};");
             dtoStream.WriteLine($"\npublic class {className}Dto \n{{");
             
             requestStream.WriteLine($"namespace {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};");
-            requestStream.WriteLine($"\npublic class {className}Request \n{{");
+            requestStream.WriteLine($"\npublic class {className}WriteDto \n{{");
             
             var variables = File.ReadLines(file).Where(line =>
                 line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
