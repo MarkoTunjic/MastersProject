@@ -21,8 +21,9 @@ public class DotNetServiceGenerator : IServiceGenerator
     public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
         string targetDirectory)
     {
+        var foreignKeys = GetForeignKeys(uuid, modelName);
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        var createMethod = GetCreateMethodCode(modelName);
+        var createMethod = GetCreateMethodCode(modelName, foreignKeys);
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
@@ -53,7 +54,6 @@ public class {modelName}Service : I{modelName}Service
 {{
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
-
     public {modelName}Service(IUnitOfWork unitOfWork, IMapper mapper)
     {{
         this._unitOfWork = unitOfWork;
@@ -73,11 +73,15 @@ public class {modelName}Service : I{modelName}Service
 ");
     }
 
-    public string GetCreateMethodCode(string modelName)
+    public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<string, Type>> foreignKeys)
     {
-        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName})
+        var foreignKeyMethodArguments = foreignKeys.Aggregate("", (current, keyValuePair) => current + $", {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
+        var getAndSetForeignKeys = foreignKeys.Aggregate("", (current, keyValuePair) => current + $"\t\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, true,char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
+        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName}{foreignKeyMethodArguments})
     {{
         var model = _mapper.Map<{modelName}WriteDto, {modelName}>(new{modelName});
+
+{getAndSetForeignKeys}
         return _mapper.Map<{modelName}, {modelName}Dto>(await _unitOfWork.{modelName}Repository.Create{modelName}Async(model));
     }}";
     }
@@ -138,5 +142,16 @@ public static class ApplicationServiceRegistration
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Service, {modelName}Service>();");
         stream.WriteLine("\t}");
         stream.WriteLine("}");
+    }
+
+    private Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid,string tableName)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        
+        var modelFile = $"{generatorVariables.ProjectDirectory}/Domain/Models/{tableName}.cs";
+        var variables = File.ReadLines(modelFile).Where(line =>
+            line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
+            line.Contains("virtual ") && !line.Contains("ICollection"));
+        return variables.Select(variable => variable.Split(" ")[10]).ToDictionary(foreignTable => foreignTable, foreignTable => DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider, generatorVariables.DatabaseConnection.ToConnectionString(), foreignTable));
     }
 }

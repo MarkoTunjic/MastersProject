@@ -44,14 +44,15 @@ public static class DatabaseSchemaUtils
         return modelNames;
     }
 
-    public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call)
+    public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call, string? prefix = null)
     {
         var result = "";
         var i = 0;
         foreach (var entry in primaryKeys)
         {
             if (i != 0) result += ", ";
-            result += $"{(call ? "" : entry.Value + " ")}{char.ToLower(entry.Key[0]) + entry.Key[1..]}";
+            var name = prefix == null ? char.ToLower(entry.Key[0]) + entry.Key[1..] : prefix + entry.Key;
+            result += $"{(call ? "" : entry.Value + " ")}{name}";
             i++;
         }
 
@@ -81,6 +82,33 @@ public static class DatabaseSchemaUtils
                 .Select(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName))
                 .ToList()!;
             result.AddRange(primaryKeys);
+        }
+
+        conn.Close();
+        return result;
+    }
+    
+    public static Dictionary<string, Type> GetPrimaryKeysAndTypesForModel(string provider,
+        string connectionString, string modelName)
+    {
+        var conn = ConnectionGetters[provider].Invoke(connectionString);
+        conn.Open();
+        var allTablesSchemaTable = conn.GetSchema("Tables");
+        Dictionary<string, Type> result = new();
+        foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
+        {
+            var tableName = (string)tableInfo.ItemArray[2]!;
+            var model = StringUtils.GetDotnetNameFromSqlName(tableName);
+            if (model != modelName)
+            {
+                continue;
+            }
+            using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
+            using var table = new DataTable(tableName);
+            result = adapter
+                .FillSchema(table, SchemaType.Mapped)
+                ?.PrimaryKey
+                .ToDictionary(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
         }
 
         conn.Close();
