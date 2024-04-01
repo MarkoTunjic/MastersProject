@@ -76,7 +76,7 @@ public class {modelName}Service : I{modelName}Service
     public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<string, Type>> foreignKeys)
     {
         var foreignKeyMethodArguments = foreignKeys.Aggregate("", (current, keyValuePair) => current + $", {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
-        var getAndSetForeignKeys = foreignKeys.Aggregate("", (current, keyValuePair) => current + $"\t\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, true,char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
+        var getAndSetForeignKeys = foreignKeys.Aggregate("", (current, keyValuePair) => current + $"\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, true,char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
         return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName}{foreignKeyMethodArguments})
     {{
         var model = _mapper.Map<{modelName}WriteDto, {modelName}>(new{modelName});
