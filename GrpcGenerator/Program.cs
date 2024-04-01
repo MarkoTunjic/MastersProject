@@ -11,6 +11,8 @@ using GrpcGenerator.Generators.MapperGenerators;
 using GrpcGenerator.Generators.MapperGenerators.Impl;
 using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
+using GrpcGenerator.Generators.PresentationGenerators;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
 using GrpcGenerator.Generators.RepositoryGenerators;
 using GrpcGenerator.Generators.RepositoryGenerators.Impl;
 using GrpcGenerator.Generators.ServiceGenerators;
@@ -79,6 +81,9 @@ repositoryGenerator.GenerateRepositories(guid);
 
 IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
 serviceGenerator.GenerateServices(guid);
+
+IPresentationGenerator presentationGenerator = new DotNetGrpcPresentationGenerator();
+presentationGenerator.GeneratePresentation(guid);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
     $"{config["sourceCodeRoot"]}/{config["mainProjectName"]}/FirstSolution.zip");

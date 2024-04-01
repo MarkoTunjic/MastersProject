@@ -21,7 +21,7 @@ public class DotNetServiceGenerator : IServiceGenerator
     public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
         string targetDirectory)
     {
-        var foreignKeys = GetForeignKeys(uuid, modelName);
+        var foreignKeys = DatabaseSchemaUtils.GetForeignKeys(uuid, modelName);
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var createMethod = GetCreateMethodCode(modelName, foreignKeys);
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
@@ -142,16 +142,5 @@ public static class ApplicationServiceRegistration
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Service, {modelName}Service>();");
         stream.WriteLine("\t}");
         stream.WriteLine("}");
-    }
-
-    private Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid,string tableName)
-    {
-        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        
-        var modelFile = $"{generatorVariables.ProjectDirectory}/Domain/Models/{tableName}.cs";
-        var variables = File.ReadLines(modelFile).Where(line =>
-            line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
-            line.Contains("virtual ") && !line.Contains("ICollection"));
-        return variables.Select(variable => variable.Split(" ")[10]).ToDictionary(foreignTable => foreignTable, foreignTable => DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider, generatorVariables.DatabaseConnection.ToConnectionString(), foreignTable));
     }
 }

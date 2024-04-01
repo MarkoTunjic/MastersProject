@@ -114,4 +114,15 @@ public static class DatabaseSchemaUtils
         conn.Close();
         return result;
     }
+    
+    public static Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid,string tableName)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        
+        var modelFile = $"{generatorVariables.ProjectDirectory}/Domain/Models/{tableName}.cs";
+        var variables = File.ReadLines(modelFile).Where(line =>
+            line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
+            line.Contains("virtual ") && !line.Contains("ICollection"));
+        return variables.Select(variable => variable.Split(" ")[10]).ToDictionary(foreignTable => foreignTable, foreignTable => DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider, generatorVariables.DatabaseConnection.ToConnectionString(), foreignTable));
+    }
 }

@@ -27,7 +27,8 @@ public class DotNetDtoGenerator : IDtoGenerator
             
             requestStream.WriteLine($"namespace {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};");
             requestStream.WriteLine($"\npublic class {className}WriteDto \n{{");
-            
+
+            var foreignKeys = DatabaseSchemaUtils.GetForeignKeys(uuid, className);
             var variables = File.ReadLines(file).Where(line =>
                 line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
                 !line.Contains("virtual "));
@@ -41,6 +42,11 @@ public class DotNetDtoGenerator : IDtoGenerator
                 dtoStream.WriteLine($"\t{variable.Trim()}");
                 var variableName = variable.Split(" ")[10];
                 if (primaryKeys.Contains(variableName))
+                {
+                    continue;
+                }
+                
+                if (variableName.EndsWith("Id") && foreignKeys.ContainsKey(variableName[..^2]))
                 {
                     continue;
                 }
