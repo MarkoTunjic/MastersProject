@@ -4,7 +4,7 @@ public interface IServiceGenerator
 {
     public void GenerateServices(string uuid);
 
-    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys, Dictionary<string, Dictionary<string, Type>> foreignKeys,
         string targetDirectory);
 
     public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<string, Type>> foreignKeys);

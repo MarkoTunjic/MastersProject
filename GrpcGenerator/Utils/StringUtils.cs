@@ -11,7 +11,29 @@ public static class StringUtils
             result += firstLetter + part[1..];
         }
 
-        if (char.ToLower(result[^1]) == 's') result = result[..^1];
+        return result;
+    }
+
+    public static string GetSqlNameFromDotnetName(string dotnetName)
+    {
+        var result = "";
+        var i = 0;
+        foreach (var character in dotnetName.ToCharArray())
+        {
+            if (char.IsLetter(character) && char.IsLower(character))
+            {
+                result += character;
+                continue;
+            }
+
+            if (i != 0)
+            {
+                result += '_';
+            }
+
+            result += char.ToLower(character);
+            i++;
+        }
         return result;
     }
 }

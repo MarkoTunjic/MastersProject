@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using GrpcGenerator.Domain;
 using Npgsql;
 
 namespace GrpcGenerator.Utils;
@@ -16,8 +17,50 @@ public static class DatabaseSchemaUtils
         { "postgres", (tableName, conn) => new NpgsqlDataAdapter("select * from " + tableName, (NpgsqlConnection)conn) }
     };
 
+    private static readonly Dictionary<string, string> ForeignKeysQuery = new()
+    {
+        {"postgres", @"SELECT DISTINCT
+    ccu.table_name AS foreign_table_name
+FROM information_schema.table_constraints AS tc 
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+JOIN information_schema.columns col
+	ON kcu.table_name = col.table_name
+	AND kcu.column_name = col.column_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+    AND tc.table_schema = @tableSchema
+    AND tc.table_name = @tableName;"}
+    };
+
+    private static Dictionary<string, Func<DbParameterVariables, DbParameter>> TableParamGetter= new ()
+    {
+        {"postgres",paramVariables=> new NpgsqlParameter()
+        {
+            Value = paramVariables.Value,
+            ParameterName = paramVariables.ParamName,
+            DbType = paramVariables.Type,
+            Size = paramVariables.Size
+        }}    
+    };
+
+    private static Dictionary<string, Action<string,List<DbParameterVariables>, DbCommand>> ForeignKeysCommandPrepearer = new()
+    {
+        {
+            "postgres", (provider,dbParamVariables, command) =>
+            {
+                foreach (var dbParamVariable in dbParamVariables)
+                {
+                    command.Parameters.Add(TableParamGetter[provider].Invoke(dbParamVariable));
+                }
+            }
+        }
+    };
+
     public static List<string> FindTablesAndExecuteActionForEachTable(string uuid, string provider,
-        string connectionString, Action<string, Dictionary<string, Type>> action)
+        string connectionString, Action<string, Dictionary<string, Type>,Dictionary<string, Dictionary<string, Type>>> action)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var conn = ConnectionGetters[provider].Invoke(connectionString);
@@ -28,15 +71,20 @@ public static class DatabaseSchemaUtils
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
         {
             var tableName = (string)tableInfo.ItemArray[2]!;
+            var tableSchema = (string)tableInfo.ItemArray[1]!;
             using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
             using var table = new DataTable(tableName);
             var primaryKeys = adapter
                 .FillSchema(table, SchemaType.Mapped)
                 ?.PrimaryKey
                 .ToDictionary(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
+            var foreignKeys = GetForeignKeys(uuid, tableName, tableSchema);
+            
             var modelName = StringUtils.GetDotnetNameFromSqlName(tableName);
+            if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
+
             if (!models.Any(file => file.EndsWith($"{modelName}.cs"))) continue;
-            action.Invoke(modelName, primaryKeys);
+            action.Invoke(modelName, primaryKeys,foreignKeys);
             modelNames.Add(modelName);
         }
 
@@ -58,35 +106,6 @@ public static class DatabaseSchemaUtils
 
         return result;
     }
-
-    public static List<string> GetPrimaryKeysForModel(string provider,
-        string connectionString, string modelName)
-    {
-        var conn = ConnectionGetters[provider].Invoke(connectionString);
-        conn.Open();
-        var allTablesSchemaTable = conn.GetSchema("Tables");
-        List<string> result = new();
-        foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
-        {
-            var tableName = (string)tableInfo.ItemArray[2]!;
-            var model = StringUtils.GetDotnetNameFromSqlName(tableName);
-            if (model != modelName)
-            {
-                continue;
-            }
-            using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
-            using var table = new DataTable(tableName);
-            var primaryKeys = adapter
-                .FillSchema(table, SchemaType.Mapped)
-                ?.PrimaryKey
-                .Select(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName))
-                .ToList()!;
-            result.AddRange(primaryKeys);
-        }
-
-        conn.Close();
-        return result;
-    }
     
     public static Dictionary<string, Type> GetPrimaryKeysAndTypesForModel(string provider,
         string connectionString, string modelName)
@@ -99,6 +118,8 @@ public static class DatabaseSchemaUtils
         {
             var tableName = (string)tableInfo.ItemArray[2]!;
             var model = StringUtils.GetDotnetNameFromSqlName(tableName);
+            if (char.ToLower(model[^1]) == 's') model = model[..^1];
+
             if (model != modelName)
             {
                 continue;
@@ -115,14 +136,49 @@ public static class DatabaseSchemaUtils
         return result;
     }
     
-    public static Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid,string tableName)
+    public static Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid, string tableName, string tableSchema)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+
+        using var connection = ConnectionGetters[generatorVariables.DatabaseProvider]
+            .Invoke(generatorVariables.DatabaseConnection.ToConnectionString());
+        connection.Open();
+
+        using var sqlCommand = connection.CreateCommand();
+        sqlCommand.CommandText = ForeignKeysQuery[generatorVariables.DatabaseProvider];
         
-        var modelFile = $"{generatorVariables.ProjectDirectory}/Domain/Models/{tableName}.cs";
-        var variables = File.ReadLines(modelFile).Where(line =>
-            line.Contains("public ") && !line.Contains("class ") && !line.Contains("(") &&
-            line.Contains("virtual ") && !line.Contains("ICollection"));
-        return variables.Select(variable => variable.Split(" ")[10]).ToDictionary(foreignTable => foreignTable, foreignTable => DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider, generatorVariables.DatabaseConnection.ToConnectionString(), foreignTable));
+        ForeignKeysCommandPrepearer[generatorVariables.DatabaseProvider].Invoke(
+            generatorVariables.DatabaseProvider,
+            new List<DbParameterVariables>
+            {
+                new (
+                    "@tableName",
+                    DbType.String,
+                    StringUtils.GetSqlNameFromDotnetName(tableName),
+                    100
+                    ), 
+                new (
+                    "@tableSchema",
+                    DbType.String,
+                    tableSchema,
+                    100
+                    )
+            }
+            ,sqlCommand);
+
+        sqlCommand.Prepare();
+        var reader= sqlCommand.ExecuteReader();
+        var result = new Dictionary<string, Dictionary<string, Type>>();
+        if (!reader.HasRows) return result;
+        while (reader.Read())
+        {
+            var foreignTableName = StringUtils.GetDotnetNameFromSqlName(reader.GetString("foreign_table_name"));
+            if (char.ToLower(foreignTableName[^1]) == 's') foreignTableName = foreignTableName[..^1];
+
+            result[foreignTableName] = GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
+                generatorVariables.DatabaseConnection.ToConnectionString(),
+                StringUtils.GetDotnetNameFromSqlName(foreignTableName));
+        }
+        return result;
     }
 }

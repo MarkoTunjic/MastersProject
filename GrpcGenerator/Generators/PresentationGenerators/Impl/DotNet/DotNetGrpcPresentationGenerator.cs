@@ -1,4 +1,3 @@
-using System.Reflection;
 using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
@@ -42,21 +41,27 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         using var stream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Protos/protofile.proto"));
         stream.Write($@"syntax = proto3
 
-{GetServices(generatorVariables)}
+{GetServices(uuid)}
 
 {GetMessages(uuid)}
 ");
     }
 
-    private static string GetServices(GeneratorVariables generatorVariables)
+    private static string GetServices(string uuid)
     {
-        var pathToModels = $"{generatorVariables.ProjectDirectory}/Domain/Models";
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
 
-        return (from file in Directory.EnumerateFiles(pathToModels)
-            where !file.EndsWith($"{generatorVariables.DatabaseConnection.DatabaseName}Context.cs")
-            select $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}"
-            into className
-            select $@"service {className}Service {{
+        var result = "";
+        DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
+            generatorVariables.DatabaseConnection.ToConnectionString(),
+            (className, _, _) =>
+            {
+                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs"))
+                {
+                    return;
+                }
+                
+                result += $@"service {className}Service {{
     rpc Get{className}ById ({className}IdRequest) returns {className}Reply;
     rpc FindAll{className} (google.protobuf.empty) returns {className}ListReply;
     rpc Delete{className}ById ({className}IdRequest) returns google.protobuf.empty;
@@ -64,34 +69,42 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
     rpc Create{className} ({className}CreateRequest) returns {className}Reply;
 }}
 
-").Aggregate("", (current, service) => current + service);
+";
+            });
+        return result;
     }
 
     private static string GetMessages(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        var pathToModels = $"{generatorVariables.ProjectDirectory}/Domain/Models";
 
-        return (from file in Directory.EnumerateFiles(pathToModels) 
-            where !file.EndsWith($"{generatorVariables.DatabaseConnection.DatabaseName}Context.cs") 
-            select $"{file[(file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".", StringComparison.Ordinal)]}")
-            .Aggregate("", (current, className) => current + $@"{GetIdRequestMessage(generatorVariables, className)}
+        var result = "";
+        DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
+            generatorVariables.DatabaseConnection.ToConnectionString(),
+            (className, primaryKeys, foreignKeys) =>
+            {
+                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs"))
+                {
+                    return;
+                }
+                
+                result += $@"{GetIdRequestMessage(primaryKeys, className)}
 
 {GetReplyMessage(generatorVariables, className)}
 
 {GetListReplyMessage(className)}
 
-{GetUpdateRequestMessage(generatorVariables, className)}
+{GetUpdateRequestMessage(generatorVariables, primaryKeys, className)}
 
-{GetCreateRequestMessage(uuid, className)}
+{GetCreateRequestMessage(uuid, foreignKeys, className)}
 
-");
+";
+            });
+        return result;
     }
 
-    private static string GetIdRequestMessage(GeneratorVariables generatorVariables,string className)
+    private static string GetIdRequestMessage(Dictionary<string,Type> primaryKeys, string className)
     {
-        var primaryKeys = DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(), className);
         var result = $"message {className}IdRequest {{";
         var i = 1;
         foreach (var entry in primaryKeys)
@@ -122,10 +135,8 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         return reply;
     }
 
-    private static string GetUpdateRequestMessage(GeneratorVariables generatorVariables, string className)
+    private static string GetUpdateRequestMessage(GeneratorVariables generatorVariables, Dictionary<string,Type> primaryKeys, string className)
     {
-        var primaryKeys = DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(), className);
         var result = $"message {className}UpdateRequest {{";
         var i = 1;
         foreach (var entry in primaryKeys)
@@ -148,7 +159,7 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         return result+"\n}";
     }
 
-    private static string GetCreateRequestMessage(string uuid, string className)
+    private static string GetCreateRequestMessage(string uuid, Dictionary<string, Dictionary<string,Type>> foreignKeys, string className)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         
@@ -166,7 +177,6 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             i++;
         }
         
-        var foreignKeys = DatabaseSchemaUtils.GetForeignKeys(uuid, className);
         foreach (var entry in foreignKeys)
         {
             foreach (var fkey in entry.Value)

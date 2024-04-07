@@ -14,15 +14,19 @@ public class DotNetServiceGenerator : IServiceGenerator
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
             generatorVariables.DatabaseConnection.ToConnectionString(),
-            (modelName, primaryKeys) => GenerateService(uuid, modelName, primaryKeys, targetDirectory));
+            (modelName, primaryKeys,foreignKeys) => GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
         GenerateApplicationServiceRegistration(uuid, modelNames);
     }
 
-    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys, Dictionary<string, Dictionary<string, Type>> foreignKeys,
         string targetDirectory)
     {
-        var foreignKeys = DatabaseSchemaUtils.GetForeignKeys(uuid, modelName);
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs"))
+        {
+            return;
+        }
+        
         var createMethod = GetCreateMethodCode(modelName, foreignKeys);
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);
