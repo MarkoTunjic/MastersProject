@@ -31,7 +31,7 @@ public class EfCoreModelGenerator : IModelGenerator
         process.StartInfo.WorkingDirectory = destinationFolder;
         process.StartInfo.FileName = "efcpt";
         var connectionString = generatorVariables.DatabaseConnection.ToConnectionString();
-            process.StartInfo.Arguments = $"\"{connectionString}\" {generatorVariables.DatabaseConnection.Provider}";
+        process.StartInfo.Arguments = $"\"{connectionString}\" {generatorVariables.DatabaseConnection.Provider}";
         process.Start();
         process.WaitForExit();
         GenerateModelsRegistration(destinationFolder, generatorVariables.DatabaseConnection.DatabaseName,

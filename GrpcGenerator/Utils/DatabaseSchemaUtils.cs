@@ -19,8 +19,10 @@ public static class DatabaseSchemaUtils
 
     private static readonly Dictionary<string, string> ForeignKeysQuery = new()
     {
-        {"postgres", @"SELECT DISTINCT
-    ccu.table_name AS foreign_table_name
+        {
+            "postgres", @"SELECT DISTINCT
+    ccu.table_name AS foreign_table_name,
+    kcu.column_name
 FROM information_schema.table_constraints AS tc 
 JOIN information_schema.key_column_usage AS kcu
     ON tc.constraint_name = kcu.constraint_name
@@ -32,35 +34,38 @@ JOIN information_schema.columns col
 	AND kcu.column_name = col.column_name
 WHERE tc.constraint_type = 'FOREIGN KEY'
     AND tc.table_schema = @tableSchema
-    AND tc.table_name = @tableName;"}
+    AND tc.table_name = @tableName;"
+        }
     };
 
-    private static Dictionary<string, Func<DbParameterVariables, DbParameter>> TableParamGetter= new ()
-    {
-        {"postgres",paramVariables=> new NpgsqlParameter()
-        {
-            Value = paramVariables.Value,
-            ParameterName = paramVariables.ParamName,
-            DbType = paramVariables.Type,
-            Size = paramVariables.Size
-        }}    
-    };
-
-    private static Dictionary<string, Action<string,List<DbParameterVariables>, DbCommand>> ForeignKeysCommandPrepearer = new()
+    private static readonly Dictionary<string, Func<DbParameterVariables, DbParameter>> TableParamGetter = new()
     {
         {
-            "postgres", (provider,dbParamVariables, command) =>
+            "postgres", paramVariables => new NpgsqlParameter
             {
-                foreach (var dbParamVariable in dbParamVariables)
-                {
-                    command.Parameters.Add(TableParamGetter[provider].Invoke(dbParamVariable));
-                }
+                Value = paramVariables.Value,
+                ParameterName = paramVariables.ParamName,
+                DbType = paramVariables.Type,
+                Size = paramVariables.Size
             }
         }
     };
 
+    private static readonly Dictionary<string, Action<string, List<DbParameterVariables>, DbCommand>>
+        ForeignKeysCommandPrepearer = new()
+        {
+            {
+                "postgres", (provider, dbParamVariables, command) =>
+                {
+                    foreach (var dbParamVariable in dbParamVariables)
+                        command.Parameters.Add(TableParamGetter[provider].Invoke(dbParamVariable));
+                }
+            }
+        };
+
     public static List<string> FindTablesAndExecuteActionForEachTable(string uuid, string provider,
-        string connectionString, Action<string, Dictionary<string, Type>,Dictionary<string, Dictionary<string, Type>>> action)
+        string connectionString,
+        Action<string, Dictionary<string, Type>, Dictionary<string, Dictionary<ForeignKey, Type>>> action)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var conn = ConnectionGetters[provider].Invoke(connectionString);
@@ -79,12 +84,12 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
                 ?.PrimaryKey
                 .ToDictionary(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
             var foreignKeys = GetForeignKeys(uuid, tableName, tableSchema);
-            
+
             var modelName = StringUtils.GetDotnetNameFromSqlName(tableName);
             if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
 
             if (!models.Any(file => file.EndsWith($"{modelName}.cs"))) continue;
-            action.Invoke(modelName, primaryKeys,foreignKeys);
+            action.Invoke(modelName, primaryKeys, foreignKeys);
             modelNames.Add(modelName);
         }
 
@@ -92,7 +97,8 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         return modelNames;
     }
 
-    public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call, string? prefix = null)
+    public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call,
+        string? prefix = null)
     {
         var result = "";
         var i = 0;
@@ -106,7 +112,25 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 
         return result;
     }
-    
+
+    public static string GetMethodInputForForeignKeys(Dictionary<ForeignKey, Type> foreignKeys, bool call,
+        string? prefix = null)
+    {
+        var result = "";
+        var i = 0;
+        foreach (var entry in foreignKeys)
+        {
+            if (i != 0) result += ", ";
+            var name = prefix == null
+                ? char.ToLower(entry.Key.ForeignColumnName[0]) + entry.Key.ForeignColumnName[1..]
+                : prefix + entry.Key.ForeignColumnName;
+            result += $"{(call ? "" : entry.Value + " ")}{name}";
+            i++;
+        }
+
+        return result;
+    }
+
     public static Dictionary<string, Type> GetPrimaryKeysAndTypesForModel(string provider,
         string connectionString, string modelName)
     {
@@ -120,10 +144,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
             var model = StringUtils.GetDotnetNameFromSqlName(tableName);
             if (char.ToLower(model[^1]) == 's') model = model[..^1];
 
-            if (model != modelName)
-            {
-                continue;
-            }
+            if (model != modelName) continue;
             using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
             using var table = new DataTable(tableName);
             result = adapter
@@ -135,8 +156,9 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         conn.Close();
         return result;
     }
-    
-    public static Dictionary<string, Dictionary<string, Type>> GetForeignKeys(string uuid, string tableName, string tableSchema)
+
+    public static Dictionary<string, Dictionary<ForeignKey, Type>> GetForeignKeys(string uuid, string tableName,
+        string tableSchema)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
 
@@ -146,39 +168,42 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 
         using var sqlCommand = connection.CreateCommand();
         sqlCommand.CommandText = ForeignKeysQuery[generatorVariables.DatabaseProvider];
-        
+
         ForeignKeysCommandPrepearer[generatorVariables.DatabaseProvider].Invoke(
             generatorVariables.DatabaseProvider,
             new List<DbParameterVariables>
             {
-                new (
+                new(
                     "@tableName",
                     DbType.String,
                     StringUtils.GetSqlNameFromDotnetName(tableName),
                     100
-                    ), 
-                new (
+                ),
+                new(
                     "@tableSchema",
                     DbType.String,
                     tableSchema,
                     100
-                    )
+                )
             }
-            ,sqlCommand);
+            , sqlCommand);
 
         sqlCommand.Prepare();
-        var reader= sqlCommand.ExecuteReader();
-        var result = new Dictionary<string, Dictionary<string, Type>>();
+        var reader = sqlCommand.ExecuteReader();
+        var result = new Dictionary<string, Dictionary<ForeignKey, Type>>();
         if (!reader.HasRows) return result;
         while (reader.Read())
         {
             var foreignTableName = StringUtils.GetDotnetNameFromSqlName(reader.GetString("foreign_table_name"));
+            var columnName = StringUtils.GetDotnetNameFromSqlName(reader.GetString("column_name"));
             if (char.ToLower(foreignTableName[^1]) == 's') foreignTableName = foreignTableName[..^1];
 
             result[foreignTableName] = GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
-                generatorVariables.DatabaseConnection.ToConnectionString(),
-                StringUtils.GetDotnetNameFromSqlName(foreignTableName));
+                    generatorVariables.DatabaseConnection.ToConnectionString(),
+                    StringUtils.GetDotnetNameFromSqlName(foreignTableName))
+                .ToDictionary(entry => new ForeignKey(columnName, entry.Key), entry => entry.Value);
         }
+
         return result;
     }
 }

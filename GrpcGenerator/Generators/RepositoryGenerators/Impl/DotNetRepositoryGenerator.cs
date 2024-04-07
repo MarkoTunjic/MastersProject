@@ -19,20 +19,19 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
             generatorVariables.DatabaseConnection.ToConnectionString(),
-            (modelName, primaryKeys,foreignKeys) => GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
+            (modelName, primaryKeys, foreignKeys) =>
+                GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
         GenerateUnitOfWork(uuid, modelNames);
         GenerateInfrastructureServiceRegistration(uuid, modelNames);
     }
 
-    public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys, Dictionary<string, Dictionary<string, Type>> foreignKeys,
+    public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs"))
-        {
-            return;
-        }
-        
+        if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
+
         var createMethod = GetCreateMethodCode(modelName);
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);

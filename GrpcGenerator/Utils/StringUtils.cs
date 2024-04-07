@@ -26,14 +26,12 @@ public static class StringUtils
                 continue;
             }
 
-            if (i != 0)
-            {
-                result += '_';
-            }
+            if (i != 0) result += '_';
 
             result += char.ToLower(character);
             i++;
         }
+
         return result;
     }
 }

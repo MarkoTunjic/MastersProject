@@ -16,7 +16,6 @@ public class GeneratorVariables
     public string ProjectName { get; set; }
     public string SolutionName { get; set; }
     public string ProjectDirectory { get; set; }
-    
-    public string DatabaseProvider { get; set; }
 
+    public string DatabaseProvider { get; set; }
 }

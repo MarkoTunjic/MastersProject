@@ -5,7 +5,7 @@ public class DotNetDependencyGenerator : IDependencyGenerator
     public void GenerateDependencies(string pathToDependencyFile)
     {
         var lines = new List<string>(File.ReadLines(pathToDependencyFile));
-        lines.Insert(8,@"    <ItemGroup>
+        lines.Insert(8, @"    <ItemGroup>
         <Protobuf Include=""Protos/protofile.proto"" />
     </ItemGroup>");
         lines.Insert(12,

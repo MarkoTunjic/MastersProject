@@ -1,10 +1,13 @@
+using GrpcGenerator.Domain;
+
 namespace GrpcGenerator.Generators.RepositoryGenerators;
 
 public interface IRepositoryGenerator
 {
     public void GenerateRepositories(string uuid);
 
-    public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys, Dictionary<string, Dictionary<string, Type>> foreignKeys,
+    public void GenerateRepository(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory);
 
     public string GetCreateMethodCode(string modelName);

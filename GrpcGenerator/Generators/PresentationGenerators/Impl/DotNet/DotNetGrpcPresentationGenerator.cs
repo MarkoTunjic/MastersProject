@@ -16,7 +16,7 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         { typeof(bool), "bool" },
         { typeof(string), "string" }
     };
-    
+
     private static readonly Dictionary<string, string> DotNetStringToGrpcType = new()
     {
         { "int", "int32" },
@@ -38,8 +38,10 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Protos");
-        using var stream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Protos/protofile.proto"));
-        stream.Write($@"syntax = proto3
+        using var stream =
+            new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Protos/protofile.proto"));
+        stream.Write($@"syntax = ""proto3"";
+import ""google/protobuf/empty.proto"";
 
 {GetServices(uuid)}
 
@@ -54,19 +56,21 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         var result = "";
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnection.ToConnectionString(),
-            (className, _, _) =>
+            (className, _, foreignKeys) =>
             {
-                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs"))
-                {
-                    return;
-                }
-                
-                result += $@"service {className}Service {{
-    rpc Get{className}ById ({className}IdRequest) returns {className}Reply;
-    rpc FindAll{className} (google.protobuf.empty) returns {className}ListReply;
-    rpc Delete{className}ById ({className}IdRequest) returns google.protobuf.empty;
-    rpc Update{className} ({className}UpdateRequest) returns google.protobuf.empty;
-    rpc Create{className} ({className}CreateRequest) returns {className}Reply;
+                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
+
+                var findByForeignKey = foreignKeys.Aggregate("",
+                    (current, entry) =>
+                        current +
+                        $"    rpc Find{className}sBy{entry.Key}Id ({entry.Key}IdRequest) returns ({className}ListReply) {{}}\n");
+                result += $@"service Grpc{className}Service {{
+    rpc Get{className}ById ({className}IdRequest) returns ({className}Reply) {{}}
+    rpc FindAll{className} (google.protobuf.Empty) returns ({className}ListReply) {{}}
+    rpc Delete{className}ById ({className}IdRequest) returns (google.protobuf.Empty) {{}}
+    rpc Update{className} ({className}UpdateRequest) returns (google.protobuf.Empty) {{}}
+    rpc Create{className} ({className}CreateRequest) returns ({className}Reply) {{}}
+{findByForeignKey.TrimEnd()}
 }}
 
 ";
@@ -83,11 +87,8 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (className, primaryKeys, foreignKeys) =>
             {
-                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs"))
-                {
-                    return;
-                }
-                
+                if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
+
                 result += $@"{GetIdRequestMessage(primaryKeys, className)}
 
 {GetReplyMessage(generatorVariables, className)}
@@ -103,7 +104,7 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         return result;
     }
 
-    private static string GetIdRequestMessage(Dictionary<string,Type> primaryKeys, string className)
+    private static string GetIdRequestMessage(Dictionary<string, Type> primaryKeys, string className)
     {
         var result = $"message {className}IdRequest {{";
         var i = 1;
@@ -112,15 +113,16 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             result += $"\n\t{DotNetToGrpcType[entry.Value]} {char.ToLower(entry.Key[0]) + entry.Key[1..]} = {i};";
             i++;
         }
-        return result+"\n}";
+
+        return result + "\n}";
     }
 
     private static string GetReplyMessage(GeneratorVariables generatorVariables, string className)
     {
         var reply = $"message {className}Reply{{";
         var fields = File.ReadLines($"{generatorVariables.ProjectDirectory}/Domain/Dto/{className}Dto.cs")
-            .Where(line=>!line.Contains("class") && line.Contains("public"))
-            .Select(line=>line.Trim());
+            .Where(line => !line.Contains("class") && line.Contains("public"))
+            .Select(line => line.Trim());
         var i = 1;
         foreach (var field in fields)
         {
@@ -135,7 +137,8 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         return reply;
     }
 
-    private static string GetUpdateRequestMessage(GeneratorVariables generatorVariables, Dictionary<string,Type> primaryKeys, string className)
+    private static string GetUpdateRequestMessage(GeneratorVariables generatorVariables,
+        Dictionary<string, Type> primaryKeys, string className)
     {
         var result = $"message {className}UpdateRequest {{";
         var i = 1;
@@ -144,10 +147,10 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             result += $"\n\t{DotNetToGrpcType[entry.Value]} {char.ToLower(entry.Key[0]) + entry.Key[1..]} = {i};";
             i++;
         }
-        
+
         var fields = File.ReadLines($"{generatorVariables.ProjectDirectory}/Domain/Request/{className}WriteDto.cs")
-            .Where(line=>!line.Contains("class") && line.Contains("public"))
-            .Select(line=>line.Trim());
+            .Where(line => !line.Contains("class") && line.Contains("public"))
+            .Select(line => line.Trim());
         foreach (var field in fields)
         {
             var split = field.Split(" ");
@@ -156,18 +159,20 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             result += $"\n\t{DotNetStringToGrpcType[type]} {char.ToLower(name[0]) + name[1..]} = {i};";
             i++;
         }
-        return result+"\n}";
+
+        return result + "\n}";
     }
 
-    private static string GetCreateRequestMessage(string uuid, Dictionary<string, Dictionary<string,Type>> foreignKeys, string className)
+    private static string GetCreateRequestMessage(string uuid,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys, string className)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        
+
         var result = $"message {className}CreateRequest {{";
         var i = 1;
         var fields = File.ReadLines($"{generatorVariables.ProjectDirectory}/Domain/Request/{className}WriteDto.cs")
-            .Where(line=>!line.Contains("class") && line.Contains("public"))
-            .Select(line=>line.Trim());
+            .Where(line => !line.Contains("class") && line.Contains("public"))
+            .Select(line => line.Trim());
         foreach (var field in fields)
         {
             var split = field.Split(" ");
@@ -176,22 +181,19 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
             result += $"\n\t{DotNetStringToGrpcType[type]} {char.ToLower(name[0]) + name[1..]} = {i};";
             i++;
         }
-        
-        foreach (var entry in foreignKeys)
+
+        foreach (var fkey in foreignKeys.SelectMany(entry => entry.Value))
         {
-            foreach (var fkey in entry.Value)
-            {
-                result += $"\n\t{DotNetToGrpcType[fkey.Value]} {char.ToLower(entry.Key[0]) + entry.Key[1..] + fkey.Key} = {i};";
-                i++;
-            }
+            result += $"\n\t{DotNetToGrpcType[fkey.Value]} {fkey.Key.ColumnName} = {i};";
+            i++;
         }
-        
-        return result+"\n}";
+
+        return result + "\n}";
     }
 
     private static string GetListReplyMessage(string className)
     {
-        return  $@"message {className}ListReply{{
+        return $@"message {className}ListReply{{
     repeated {className}Reply {className}s = 1;
 }}
 ";

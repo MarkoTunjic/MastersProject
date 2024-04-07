@@ -14,24 +14,31 @@ public class DotNetServiceGenerator : IServiceGenerator
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
             generatorVariables.DatabaseConnection.ToConnectionString(),
-            (modelName, primaryKeys,foreignKeys) => GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
+            (modelName, primaryKeys, foreignKeys) =>
+                GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
         GenerateApplicationServiceRegistration(uuid, modelNames);
     }
 
-    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys, Dictionary<string, Dictionary<string, Type>> foreignKeys,
+    public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs"))
-        {
-            return;
-        }
-        
+        if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
+
         var createMethod = GetCreateMethodCode(modelName, foreignKeys);
         var deleteMethod = GetDeleteMethodCode(modelName, primaryKeys);
         var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
+        var findByForeignKey = GetFindByForeignKeyMethods(modelName, foreignKeys);
         var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
+
+        var findByForeignKeysSplit = findByForeignKey.Split("\n\n");
+        var findByIdMethodDeclarations = findByForeignKeysSplit.Aggregate("",
+            (current, method) => method.Length > 0
+                ? current + $"{method[..method.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};\n"
+                : "");
+        findByIdMethodDeclarations = findByIdMethodDeclarations.Trim();
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Service.cs"));
         interfaceStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
@@ -44,6 +51,7 @@ public interface I{modelName}Service
     {readAllMethod[..readAllMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
     {findById[..findById.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
     {updateMethod[..updateMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {findByIdMethodDeclarations}
 }}
 ");
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Service.cs"));
@@ -68,20 +76,28 @@ public class {modelName}Service : I{modelName}Service
 
     {deleteMethod}
 
+    {updateMethod}
+
     {readAllMethod}
 
     {findById}
 
-    {updateMethod}
+{findByForeignKey}
 }}
 ");
     }
 
-    public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<string, Type>> foreignKeys)
+    public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
     {
-        var foreignKeyMethodArguments = foreignKeys.Aggregate("", (current, keyValuePair) => current + $", {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
-        var getAndSetForeignKeys = foreignKeys.Aggregate("", (current, keyValuePair) => current + $"\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(keyValuePair.Value, true,char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
-        return $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName}{foreignKeyMethodArguments})
+        var foreignKeyMethodArguments = foreignKeys.Aggregate("",
+            (current, keyValuePair) =>
+                current +
+                $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
+        var getAndSetForeignKeys = foreignKeys.Aggregate("",
+            (current, keyValuePair) => current +
+                                       $"\t\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, true, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
+        return
+            $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName}{foreignKeyMethodArguments})
     {{
         var model = _mapper.Map<{modelName}WriteDto, {modelName}>(new{modelName});
 
@@ -117,9 +133,30 @@ public class {modelName}Service : I{modelName}Service
     }}";
     }
 
+    public string GetFindByForeignKeyMethods(string modelName,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
+    {
+        var result = "";
+        foreach (var entry in foreignKeys)
+        {
+            var foreignEntity = char.ToLower(entry.Key[0]) + entry.Key[1..];
+            result += "\t" +
+                      $@"public async Task<List<{modelName}Dto>> Find{modelName}sBy{entry.Key}Id({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, false, foreignEntity)})
+    {{
+        var {foreignEntity} = await _unitOfWork.{entry.Key}Repository.Find{entry.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, foreignEntity)});
+        return _mapper.Map<List<{modelName}>, List<{modelName}Dto>>({foreignEntity}.{modelName}s.ToList());
+    }}
+
+";
+        }
+
+        return result.Length == 0 ? result : result[..^2];
+    }
+
     public string GetUpdateMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
-        return $@"public async Task Update{modelName}Async({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)}, {modelName}WriteDto updated{modelName})
+        return
+            $@"public async Task Update{modelName}Async({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)}, {modelName}WriteDto updated{modelName})
     {{
         var model = await _unitOfWork.{modelName}Repository.Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
         model = _mapper.Map<{modelName}WriteDto, {modelName}>(updated{modelName}, model);
