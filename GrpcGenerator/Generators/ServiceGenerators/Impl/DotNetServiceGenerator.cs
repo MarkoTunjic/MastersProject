@@ -16,6 +16,13 @@ public class DotNetServiceGenerator : IServiceGenerator
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
+
+        modelNames = modelNames.Select(modelName =>
+        {
+            modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
+            if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
+            return modelName;
+        }).ToList();
         GenerateApplicationServiceRegistration(uuid, modelNames);
     }
 
@@ -23,6 +30,10 @@ public class DotNetServiceGenerator : IServiceGenerator
         Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory)
     {
+        modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
+        if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
+        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
 
@@ -179,7 +190,8 @@ public static class ApplicationServiceRegistration
 {{
     public static void AddApplication(this IServiceCollection services)
     {{");
-        foreach (var modelName in modelNames)
+        foreach (var modelName in modelNames.Where(modelName =>
+                     File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Service, {modelName}Service>();");
         stream.WriteLine("\t}");
         stream.WriteLine("}");

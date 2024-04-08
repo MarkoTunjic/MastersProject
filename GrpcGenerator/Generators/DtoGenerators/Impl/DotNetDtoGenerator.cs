@@ -23,6 +23,9 @@ public class DotNetDtoGenerator : IDtoGenerator
     private static void GenerateDto(string uuid, string className, Dictionary<string, Type> primaryKeysAndTypes,
         Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys, string destinationDirectory, string packageName)
     {
+        className = StringUtils.GetDotnetNameFromSqlName(className);
+        if (char.ToLower(className[^1]) == 's') className = className[..^1];
+        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeysAndTypes, ref foreignKeys);
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 

@@ -28,8 +28,9 @@ public class DotNetGrpcMapperGenerator : IMapperGenerator
                     (file.LastIndexOf("/", StringComparison.Ordinal) + 1)..file.LastIndexOf(".",
                         StringComparison.Ordinal)];
             var modelName = dtoName[..dtoName.LastIndexOf("Dto", StringComparison.Ordinal)];
-            stream.WriteLine($"\t\tCreateMap<{modelName}Dto, {dtoName}Reply>();");
-            stream.WriteLine($"\t\tCreateMap<{dtoName}Request, {modelName}WriteDto>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}Dto, {modelName}Reply>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}UpdateRequest, {modelName}WriteDto>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}CreateRequest, {modelName}WriteDto>();");
         }
     }
 }

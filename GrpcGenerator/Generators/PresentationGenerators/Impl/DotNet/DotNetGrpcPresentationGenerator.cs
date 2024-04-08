@@ -1,4 +1,5 @@
 using GrpcGenerator.Domain;
+using GrpcGenerator.Generators.MapperGenerators.Impl;
 using GrpcGenerator.Utils;
 
 namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
@@ -32,6 +33,7 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
     public void GeneratePresentation(string uuid)
     {
         GenerateProtofile(uuid);
+        new DotNetGrpcMapperGenerator().GenerateMappers(uuid);
     }
 
     private static void GenerateProtofile(string uuid)
@@ -56,8 +58,12 @@ import ""google/protobuf/empty.proto"";
         var result = "";
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnection.ToConnectionString(),
-            (className, _, foreignKeys) =>
+            (className, primaryKeys, foreignKeys) =>
             {
+                className = StringUtils.GetDotnetNameFromSqlName(className);
+                if (char.ToLower(className[^1]) == 's') className = className[..^1];
+                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 
                 var findByForeignKey = foreignKeys.Aggregate("",
@@ -87,6 +93,10 @@ import ""google/protobuf/empty.proto"";
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (className, primaryKeys, foreignKeys) =>
             {
+                className = StringUtils.GetDotnetNameFromSqlName(className);
+                if (char.ToLower(className[^1]) == 's') className = className[..^1];
+                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 
                 result += $@"{GetIdRequestMessage(primaryKeys, className)}

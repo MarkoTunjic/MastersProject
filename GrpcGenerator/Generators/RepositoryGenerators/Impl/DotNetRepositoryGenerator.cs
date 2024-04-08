@@ -21,6 +21,14 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
+
+        modelNames = modelNames.Select(modelName =>
+        {
+            modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
+            if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
+            return modelName;
+        }).ToList();
+
         GenerateUnitOfWork(uuid, modelNames);
         GenerateInfrastructureServiceRegistration(uuid, modelNames);
     }
@@ -29,6 +37,10 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory)
     {
+        modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
+        if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
+        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
 
@@ -149,7 +161,7 @@ public class DependencyInjectionUnitOfWork : IUnitOfWork
 {{
     public DependencyInjectionUnitOfWork(");
         var i = 0;
-        foreach (var modelName in modelNames)
+        foreach (var modelName in modelNames.Where(modelName => File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
         {
             interfaceStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
             if (i != 0)
@@ -162,11 +174,14 @@ public class DependencyInjectionUnitOfWork : IUnitOfWork
         classStream.WriteLine("\n\t{");
         interfaceStream.Write("}");
 
-        foreach (var modelName in modelNames)
+        foreach (var modelName in modelNames.Where(modelName =>
+                     File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             classStream.WriteLine(
                 $"\t\t{modelName}Repository = {char.ToLower(modelName[0]) + modelName[1..]}Repository;");
+
         classStream.WriteLine("\t}");
-        foreach (var modelName in modelNames)
+        foreach (var modelName in modelNames.Where(modelName =>
+                     File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             classStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
         classStream.WriteLine("}");
     }
@@ -190,7 +205,8 @@ public static class InfrastructureServiceRegistration
     {{
         services.AddTransient<IUnitOfWork,DependencyInjectionUnitOfWork>();
 ");
-        foreach (var modelName in modelNames)
+        foreach (var modelName in modelNames.Where(modelName =>
+                     File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Repository, {modelName}Repository>();");
         stream.WriteLine("\t}");
         stream.WriteLine("}");

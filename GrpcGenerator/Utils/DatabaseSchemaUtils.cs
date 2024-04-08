@@ -67,12 +67,10 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         string connectionString,
         Action<string, Dictionary<string, Type>, Dictionary<string, Dictionary<ForeignKey, Type>>> action)
     {
-        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var conn = ConnectionGetters[provider].Invoke(connectionString);
-        var models = Directory.GetFiles($"{generatorVariables.ProjectDirectory}/Domain/Models");
         conn.Open();
         var allTablesSchemaTable = conn.GetSchema("Tables");
-        var modelNames = new List<string>();
+        var tableNames = new List<string>();
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
         {
             var tableName = (string)tableInfo.ItemArray[2]!;
@@ -82,19 +80,15 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
             var primaryKeys = adapter
                 .FillSchema(table, SchemaType.Mapped)
                 ?.PrimaryKey
-                .ToDictionary(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
+                .ToDictionary(c => c.ColumnName, c => c.DataType)!;
             var foreignKeys = GetForeignKeys(uuid, tableName, tableSchema);
 
-            var modelName = StringUtils.GetDotnetNameFromSqlName(tableName);
-            if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
-
-            if (!models.Any(file => file.EndsWith($"{modelName}.cs"))) continue;
-            action.Invoke(modelName, primaryKeys, foreignKeys);
-            modelNames.Add(modelName);
+            action.Invoke(tableName, primaryKeys, foreignKeys);
+            tableNames.Add(tableName);
         }
 
         conn.Close();
-        return modelNames;
+        return tableNames;
     }
 
     public static string GetMethodInputForPrimaryKeys(IReadOnlyDictionary<string, Type> primaryKeys, bool call,
@@ -105,7 +99,9 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         foreach (var entry in primaryKeys)
         {
             if (i != 0) result += ", ";
-            var name = prefix == null ? char.ToLower(entry.Key[0]) + entry.Key[1..] : prefix + entry.Key;
+            var name = prefix == null
+                ? char.ToLower(entry.Key[0]) + entry.Key[1..]
+                : prefix + char.ToUpper(entry.Key[0]) + entry.Key[1..];
             result += $"{(call ? "" : entry.Value + " ")}{name}";
             i++;
         }
@@ -123,7 +119,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
             if (i != 0) result += ", ";
             var name = prefix == null
                 ? char.ToLower(entry.Key.ForeignColumnName[0]) + entry.Key.ForeignColumnName[1..]
-                : prefix + entry.Key.ForeignColumnName;
+                : prefix + char.ToUpper(entry.Key.ForeignColumnName[0]) + entry.Key.ForeignColumnName[1..];
             result += $"{(call ? "" : entry.Value + " ")}{name}";
             i++;
         }
@@ -132,7 +128,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
     }
 
     public static Dictionary<string, Type> GetPrimaryKeysAndTypesForModel(string provider,
-        string connectionString, string modelName)
+        string connectionString, string tableName)
     {
         var conn = ConnectionGetters[provider].Invoke(connectionString);
         conn.Open();
@@ -140,17 +136,15 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         Dictionary<string, Type> result = new();
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
         {
-            var tableName = (string)tableInfo.ItemArray[2]!;
-            var model = StringUtils.GetDotnetNameFromSqlName(tableName);
-            if (char.ToLower(model[^1]) == 's') model = model[..^1];
+            var currentTable = (string)tableInfo.ItemArray[2]!;
 
-            if (model != modelName) continue;
-            using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
-            using var table = new DataTable(tableName);
+            if (currentTable != tableName) continue;
+            using var adapter = DataAdapterGetters[provider].Invoke(currentTable, conn);
+            using var table = new DataTable(currentTable);
             result = adapter
                 .FillSchema(table, SchemaType.Mapped)
                 ?.PrimaryKey
-                .ToDictionary(c => StringUtils.GetDotnetNameFromSqlName(c.ColumnName), c => c.DataType)!;
+                .ToDictionary(c => c.ColumnName, c => c.DataType)!;
         }
 
         conn.Close();
@@ -194,13 +188,12 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         if (!reader.HasRows) return result;
         while (reader.Read())
         {
-            var foreignTableName = StringUtils.GetDotnetNameFromSqlName(reader.GetString("foreign_table_name"));
-            var columnName = StringUtils.GetDotnetNameFromSqlName(reader.GetString("column_name"));
-            if (char.ToLower(foreignTableName[^1]) == 's') foreignTableName = foreignTableName[..^1];
+            var foreignTableName = reader.GetString("foreign_table_name");
+            var columnName = reader.GetString("column_name");
 
             result[foreignTableName] = GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
                     generatorVariables.DatabaseConnection.ToConnectionString(),
-                    StringUtils.GetDotnetNameFromSqlName(foreignTableName))
+                    foreignTableName)
                 .ToDictionary(entry => new ForeignKey(columnName, entry.Key), entry => entry.Value);
         }
 
