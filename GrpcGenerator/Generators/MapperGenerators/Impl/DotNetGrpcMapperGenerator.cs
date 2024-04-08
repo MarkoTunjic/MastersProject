@@ -31,6 +31,9 @@ public class DotNetGrpcMapperGenerator : IMapperGenerator
             stream.WriteLine($"\t\tCreateMap<{modelName}Dto, {modelName}Reply>();");
             stream.WriteLine($"\t\tCreateMap<{modelName}UpdateRequest, {modelName}WriteDto>();");
             stream.WriteLine($"\t\tCreateMap<{modelName}CreateRequest, {modelName}WriteDto>();");
+            stream.WriteLine($"\t\tCreateMap<{modelName}CreateRequest, {modelName}WriteDto>();");
         }
+        stream.WriteLine("\t}");
+        stream.WriteLine("}");
     }
 }

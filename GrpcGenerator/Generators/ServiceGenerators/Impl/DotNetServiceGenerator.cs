@@ -24,6 +24,33 @@ public class DotNetServiceGenerator : IServiceGenerator
             return modelName;
         }).ToList();
         GenerateApplicationServiceRegistration(uuid, modelNames);
+        GenerateNotFoundException(uuid);
+    }
+
+    private void GenerateNotFoundException(string uuid)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Domain/Exceptions");
+
+        using var stream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Domain/Exceptions/NotFoundException.cs"));
+        stream.Write($@"namespace {NamespaceNames.ExceptionsNamespace};
+
+public class NotFoundException : Exception
+{{
+    public NotFoundException()
+    {{
+    }}
+
+    public NotFoundException(string message)
+    : base(message)
+    {{
+    }}
+    
+    public NotFoundException(string message, Exception inner)
+        : base(message, inner)
+    {{
+    }}
+}}");
     }
 
     public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
@@ -137,10 +164,10 @@ public class {modelName}Service : I{modelName}Service
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
         return
-            $@"public async Task<{modelName}Dto?> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
+            $@"public async Task<{modelName}Dto> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
         var result = await _unitOfWork.{modelName}Repository.Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
-        return result == null ? null : _mapper.Map<{modelName}, {modelName}Dto>(result);
+        return _mapper.Map<{modelName}, {modelName}Dto>(result);
     }}";
     }
 

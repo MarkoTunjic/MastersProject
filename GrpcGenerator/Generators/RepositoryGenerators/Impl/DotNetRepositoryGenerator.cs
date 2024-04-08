@@ -65,6 +65,7 @@ public interface I{modelName}Repository
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Repository.cs"));
         classStream.Write($@"using {NamespaceNames.ModelsNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Common;
+using {NamespaceNames.ExceptionsNamespace};
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Impl;
 public class {modelName}Repository : I{modelName}Repository
@@ -103,9 +104,9 @@ public class {modelName}Repository : I{modelName}Repository
             $@"public async Task Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
         var tbd = await Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
-        if(tbd == null)
+        if (tbd == null)
         {{
-            return;
+            throw new NotFoundException();
         }}
         await CrudOperations.DeleteAsync(tbd, _dbContext);
     }}";
@@ -122,9 +123,14 @@ public class {modelName}Repository : I{modelName}Repository
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
     {
         return
-            $@"public async Task<{modelName}?> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
+            $@"public async Task<{modelName}> Find{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        return await CrudOperations.FindByIdAsync<{modelName}>(_dbContext, {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        var result = await CrudOperations.FindByIdAsync<{modelName}>(_dbContext, {DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        if (result == null)
+        {{
+            throw new NotFoundException();
+        }}
+        return result;
     }}";
     }
 
