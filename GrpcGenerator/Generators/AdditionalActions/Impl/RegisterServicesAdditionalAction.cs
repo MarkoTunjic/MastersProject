@@ -19,7 +19,7 @@ public class RegisterServicesAdditionalAction : IAdditionalAction
         lines.Insert(6, "builder.Services.AddModels(builder.Configuration);");
         lines.Insert(7, "builder.Services.AddInfrastructure();");
         lines.Insert(8, "builder.Services.AddApplication();");
-
+        lines.Insert(8, "builder.Services.AddPresentation();");
 
         File.WriteAllLines(generatorVariables.ProjectDirectory + "/Program.cs", lines);
     }

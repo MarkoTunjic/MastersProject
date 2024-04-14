@@ -127,7 +127,7 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
     {
-        var foreignKeyMethodArguments = foreignKeys.Aggregate("",
+        var foreignKeyMethodArguments = foreignKeys.OrderBy(entry=>entry.Key).Aggregate("",
             (current, keyValuePair) =>
                 current +
                 $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
@@ -155,7 +155,7 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetFindAllMethodCode(string modelName)
     {
-        return $@"public async Task<List<{modelName}Dto>> FindAll{modelName}Async()
+        return $@"public async Task<List<{modelName}Dto>> FindAll{modelName}sAsync()
     {{
         return _mapper.Map<List<{modelName}>, List<{modelName}Dto>>(await _unitOfWork.{modelName}Repository.FindAll{modelName}Async());
     }}";
