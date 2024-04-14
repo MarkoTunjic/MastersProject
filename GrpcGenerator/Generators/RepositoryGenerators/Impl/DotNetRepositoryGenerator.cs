@@ -167,7 +167,8 @@ public class DependencyInjectionUnitOfWork : IUnitOfWork
 {{
     public DependencyInjectionUnitOfWork(");
         var i = 0;
-        foreach (var modelName in modelNames.Where(modelName => File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
+        foreach (var modelName in modelNames.Where(modelName =>
+                     File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
         {
             interfaceStream.WriteLine($"\tpublic I{modelName}Repository {modelName}Repository {{ get; }}\n");
             if (i != 0)

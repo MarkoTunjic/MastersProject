@@ -96,7 +96,7 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
     {
         var result = "";
         var i = 0;
-        foreach (var entry in primaryKeys.OrderBy(entry=>entry.Key))
+        foreach (var entry in primaryKeys.OrderBy(entry => entry.Key))
         {
             if (i != 0) result += ", ";
             var name = prefix == null

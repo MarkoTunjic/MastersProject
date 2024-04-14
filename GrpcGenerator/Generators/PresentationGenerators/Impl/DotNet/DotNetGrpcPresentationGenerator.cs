@@ -14,6 +14,5 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
 
     private static void GeneratePresentationServiceRegistration(string uuid)
     {
-        
     }
 }

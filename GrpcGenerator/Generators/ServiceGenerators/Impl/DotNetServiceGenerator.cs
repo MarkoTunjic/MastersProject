@@ -27,32 +27,6 @@ public class DotNetServiceGenerator : IServiceGenerator
         GenerateNotFoundException(uuid);
     }
 
-    private void GenerateNotFoundException(string uuid)
-    {
-        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Domain/Exceptions");
-
-        using var stream = new StreamWriter(File.Create($"{generatorVariables.ProjectDirectory}/Domain/Exceptions/NotFoundException.cs"));
-        stream.Write($@"namespace {NamespaceNames.ExceptionsNamespace};
-
-public class NotFoundException : Exception
-{{
-    public NotFoundException()
-    {{
-    }}
-
-    public NotFoundException(string message)
-    : base(message)
-    {{
-    }}
-    
-    public NotFoundException(string message, Exception inner)
-        : base(message, inner)
-    {{
-    }}
-}}");
-    }
-
     public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
         Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys,
         string targetDirectory)
@@ -127,7 +101,7 @@ public class {modelName}Service : I{modelName}Service
 
     public string GetCreateMethodCode(string modelName, Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
     {
-        var foreignKeyMethodArguments = foreignKeys.OrderBy(entry=>entry.Key).Aggregate("",
+        var foreignKeyMethodArguments = foreignKeys.OrderBy(entry => entry.Key).Aggregate("",
             (current, keyValuePair) =>
                 current +
                 $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
@@ -200,6 +174,34 @@ public class {modelName}Service : I{modelName}Service
         model = _mapper.Map<{modelName}WriteDto, {modelName}>(updated{modelName}, model);
         await _unitOfWork.{modelName}Repository.Update{modelName}Async(model);
     }}";
+    }
+
+    private void GenerateNotFoundException(string uuid)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Domain/Exceptions");
+
+        using var stream =
+            new StreamWriter(
+                File.Create($"{generatorVariables.ProjectDirectory}/Domain/Exceptions/NotFoundException.cs"));
+        stream.Write($@"namespace {NamespaceNames.ExceptionsNamespace};
+
+public class NotFoundException : Exception
+{{
+    public NotFoundException()
+    {{
+    }}
+
+    public NotFoundException(string message)
+    : base(message)
+    {{
+    }}
+    
+    public NotFoundException(string message, Exception inner)
+        : base(message, inner)
+    {{
+    }}
+}}");
     }
 
     private static void GenerateApplicationServiceRegistration(string uuid, List<string> modelNames)

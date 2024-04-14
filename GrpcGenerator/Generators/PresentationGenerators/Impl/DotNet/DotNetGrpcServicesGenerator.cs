@@ -64,10 +64,11 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
     private static string GetFindByIdMethodCode(string className, Dictionary<string, Type> primaryKeys)
     {
         var variableName = char.ToLower(className[0]) + className[1..];
-        
-        return $@"public override async Task<{className}Reply> Get{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
+
+        return
+            $@"public override async Task<{className}Reply> Get{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
     {{
-        var result = await _{variableName}Service.Find{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys,true,$"{variableName}Id.")});
+        var result = await _{variableName}Service.Find{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
         return _mapper.Map<{className}Dto, {className}Reply>(result);
     }}";
     }
@@ -76,7 +77,8 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
     {
         var variableName = char.ToLower(className[0]) + className[1..];
 
-        return $@"public override async Task<{className}ListReply> FindAll{className}s(Empty empty, ServerCallContext context)
+        return
+            $@"public override async Task<{className}ListReply> FindAll{className}s(Empty empty, ServerCallContext context)
     {{
         var result = await _{variableName}Service.FindAll{className}sAsync();
         var mappedResult = _mapper.Map<List<{className}Dto>, List<{className}Reply>>(result);
@@ -87,14 +89,15 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
         }};
     }}";
     }
-    
+
     private static string GetDeleteByIdMethodCode(string className, Dictionary<string, Type> primaryKeys)
     {
         var variableName = char.ToLower(className[0]) + className[1..];
 
-        return $@"public override async Task<Empty> Delete{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
+        return
+            $@"public override async Task<Empty> Delete{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
     {{
-        await _{variableName}Service.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys,true,$"{variableName}Id.")});
+        await _{variableName}Service.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
     
         return new Empty();
     }}";
@@ -104,7 +107,8 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
     {
         var variableName = char.ToLower(className[0]) + className[1..];
 
-        return $@"public override async Task<Empty> Update{className}({className}UpdateRequest {variableName}, ServerCallContext context)
+        return
+            $@"public override async Task<Empty> Update{className}({className}UpdateRequest {variableName}, ServerCallContext context)
     {{
         var mappedInput = _mapper.Map<{className}UpdateRequest, {className}WriteDto>({variableName});
         await _{variableName}Service.Update{className}Async({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}.")}, mappedInput);
@@ -112,12 +116,17 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
         return new Empty();
     }}";
     }
-    
-    private static string GetCreateMethodCode(string className, Dictionary<string, Dictionary<ForeignKey,Type>> foreignKeys)
+
+    private static string GetCreateMethodCode(string className,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
     {
         var variableName = char.ToLower(className[0]) + className[1..];
-        var foreignKeyInput = foreignKeys.OrderBy(entry=>entry.Key).Aggregate("", (current, entry) => current + $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, $"{variableName}.{entry.Key}")}");
-        return $@"public override async Task<{className}Reply> Create{className}({className}CreateRequest {variableName}, ServerCallContext context)
+        var foreignKeyInput = foreignKeys.OrderBy(entry => entry.Key).Aggregate("",
+            (current, entry) =>
+                current +
+                $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, $"{variableName}.{entry.Key}")}");
+        return
+            $@"public override async Task<{className}Reply> Create{className}({className}CreateRequest {variableName}, ServerCallContext context)
     {{
         var mappedInput = _mapper.Map<{className}CreateRequest, {className}WriteDto>({variableName});
         var result = await _{variableName}Service.Create{className}Async(mappedInput{foreignKeyInput});
@@ -125,17 +134,19 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
         return _mapper.Map<{className}Dto, {className}Reply>(result);
     }}";
     }
-    
-    private static string GetFindByForeignKeyMethodCodes(string className, Dictionary<string, Dictionary<ForeignKey,Type>> foreignKeys)
+
+    private static string GetFindByForeignKeyMethodCodes(string className,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
     {
         var variableName = char.ToLower(className[0]) + className[1..];
         var result = "";
         foreach (var entry in foreignKeys)
         {
-            var foreignVariableName=char.ToLower(entry.Key[0]) + entry.Key[1..];
-            result += $@"   public override async Task<{className}ListReply> Find{className}sBy{entry.Key}Id({entry.Key}IdRequest {foreignVariableName}Id, ServerCallContext context)
+            var foreignVariableName = char.ToLower(entry.Key[0]) + entry.Key[1..];
+            result +=
+                $@"   public override async Task<{className}ListReply> Find{className}sBy{entry.Key}Id({entry.Key}IdRequest {foreignVariableName}Id, ServerCallContext context)
     {{
-        var result = await _{variableName}Service.Find{className}sBy{entry.Key}Id({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value,true,$"{foreignVariableName}Id.")});
+        var result = await _{variableName}Service.Find{className}sBy{entry.Key}Id({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, $"{foreignVariableName}Id.")});
         var mappedResult = _mapper.Map<List<{className}Dto>, List<{className}Reply>>(result);
         
         return new {className}ListReply()
@@ -147,10 +158,7 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
 ";
         }
 
-        if (result.Length > 2)
-        {
-            result = result[..^2];
-        }
+        if (result.Length > 2) result = result[..^2];
         return result;
     }
 }

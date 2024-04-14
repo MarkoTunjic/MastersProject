@@ -28,13 +28,13 @@ public class GrpcProtofileGenerator : IPresentationGenerator
         { "bool", "bool" },
         { "string", "string" }
     };
-    
-    
+
+
     public void GeneratePresentation(string uuid)
     {
         GenerateProtofile(uuid);
     }
-    
+
     private static void GenerateProtofile(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
@@ -193,7 +193,8 @@ import ""google/protobuf/empty.proto"";
 
         foreach (var fkey in foreignKeys.SelectMany(entry => entry.Value))
         {
-            result += $"\n\t{DotNetToGrpcType[fkey.Value]} {char.ToLower(fkey.Key.ColumnName[0]) + fkey.Key.ColumnName[1..]} = {i};";
+            result +=
+                $"\n\t{DotNetToGrpcType[fkey.Value]} {char.ToLower(fkey.Key.ColumnName[0]) + fkey.Key.ColumnName[1..]} = {i};";
             i++;
         }
 
