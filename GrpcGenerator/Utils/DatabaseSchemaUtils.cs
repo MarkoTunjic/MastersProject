@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Data.SqlClient;
 using GrpcGenerator.Domain;
 using Npgsql;
 
@@ -9,12 +10,14 @@ public static class DatabaseSchemaUtils
 {
     private static readonly Dictionary<string, Func<string, DbConnection>> ConnectionGetters = new()
     {
-        { "postgres", connectionString => new NpgsqlConnection(connectionString) }
+        { "postgres", connectionString => new NpgsqlConnection(connectionString) },
+        {"sqlserver", connectionString => new SqlConnection(connectionString)}
     };
 
     private static readonly Dictionary<string, Func<string, DbConnection, DbDataAdapter>> DataAdapterGetters = new()
     {
-        { "postgres", (tableName, conn) => new NpgsqlDataAdapter("select * from " + tableName, (NpgsqlConnection)conn) }
+        { "postgres", (tableName, conn) => new NpgsqlDataAdapter("select * from " + tableName, (NpgsqlConnection)conn) },
+        {"sqlserver", (tableName, conn) => new SqlDataAdapter("select * from " + tableName, (SqlConnection) conn)}
     };
 
     private static readonly Dictionary<string, string> ForeignKeysQuery = new()
@@ -35,13 +38,36 @@ JOIN information_schema.columns col
 WHERE tc.constraint_type = 'FOREIGN KEY'
     AND tc.table_schema = @tableSchema
     AND tc.table_name = @tableName;"
-        }
+        },
+        {"sqlserver", @"SELECT col1.name AS column_name,
+    tab2.name AS foreign_table_name
+FROM sys.foreign_key_columns fkc
+INNER JOIN sys.objects obj
+    ON obj.object_id = fkc.constraint_object_id
+INNER JOIN sys.tables tab1
+    ON tab1.object_id = fkc.parent_object_id AND tab1.name = @tableName
+INNER JOIN sys.schemas sch
+    ON tab1.schema_id = sch.schema_id
+    AND sch.name = @tableSchema
+INNER JOIN sys.columns col1
+    ON col1.column_id = parent_column_id AND col1.object_id = tab1.object_id
+INNER JOIN sys.tables tab2
+    ON tab2.object_id = fkc.referenced_object_id"}
     };
 
     private static readonly Dictionary<string, Func<DbParameterVariables, DbParameter>> TableParamGetter = new()
     {
         {
             "postgres", paramVariables => new NpgsqlParameter
+            {
+                Value = paramVariables.Value,
+                ParameterName = paramVariables.ParamName,
+                DbType = paramVariables.Type,
+                Size = paramVariables.Size
+            }
+        },
+        {
+            "sqlserver", paramVariables => new SqlParameter
             {
                 Value = paramVariables.Value,
                 ParameterName = paramVariables.ParamName,
@@ -56,6 +82,13 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
         {
             {
                 "postgres", (provider, dbParamVariables, command) =>
+                {
+                    foreach (var dbParamVariable in dbParamVariables)
+                        command.Parameters.Add(TableParamGetter[provider].Invoke(dbParamVariable));
+                }
+            },
+            {
+                "sqlserver", (provider, dbParamVariables, command) =>
                 {
                     foreach (var dbParamVariable in dbParamVariables)
                         command.Parameters.Add(TableParamGetter[provider].Invoke(dbParamVariable));

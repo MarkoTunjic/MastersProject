@@ -14,6 +14,11 @@ public class DotNetDependencyGenerator : IDependencyGenerator
             lines.Insert(9,
                 "      <PackageReference Include=\"Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"6.0.22\" />");
         }
+
+        if (generatorVariables.DatabaseProvider == "sqlserver")
+        {
+            lines.Insert(9,"      <PackageReference Include=\"Microsoft.EntityFrameworkCore.SqlServer\" Version=\"6.0.25\" />");
+        }
         if (generatorVariables.Architecture == "grpc")
         {
             lines.Insert(9, @"    <ItemGroup>

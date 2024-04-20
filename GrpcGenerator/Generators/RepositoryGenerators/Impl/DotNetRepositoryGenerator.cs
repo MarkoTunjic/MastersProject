@@ -17,7 +17,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
 
         Directory.CreateDirectory($"{targetDirectory}/Impl");
 
-        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
+        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));

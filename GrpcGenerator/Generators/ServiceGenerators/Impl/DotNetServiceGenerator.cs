@@ -12,7 +12,7 @@ public class DotNetServiceGenerator : IServiceGenerator
 
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Application/Services";
 
-        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, "postgres",
+        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));

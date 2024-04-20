@@ -39,12 +39,12 @@ Copier.CopyDirectory($"{config["sourceCodeRoot"]}/templates/dotnet6/{oldSolution
 
 const string newSolutionName = "FirstSolution";
 const string newProjectName = "FirstProject";
-var databaseName = "zavrsni_rad";
+var databaseName = "MastersProject";
 var databaseServer = "127.0.0.1";
-var databasePort = "5432";
-var databaseUid = "postgres";
-var databasePwd = "bazepodataka";
-var provider = "postgres";
+var databasePort = "1433";
+var databaseUid = "sa";
+var databasePwd = "Drvahagn10.";
+var provider = "sqlserver";
 var projectRoot = $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}";
 var architecture = "rest";
 var generatorVariables =

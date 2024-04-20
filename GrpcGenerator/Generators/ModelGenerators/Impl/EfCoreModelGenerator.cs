@@ -11,6 +11,10 @@ public class EfCoreModelGenerator : IModelGenerator
         {
             DotNetSupportedDBMS.PostgreSql,
             "options.UseNpgsql(configuration.GetConnectionString(\"DefaultConnection\"));"
+        },
+        {
+            DotNetSupportedDBMS.SqlServer,
+            "options.UseSqlServer(configuration.GetConnectionString(\"DefaultConnection\"));"
         }
     };
 
@@ -19,6 +23,10 @@ public class EfCoreModelGenerator : IModelGenerator
         {
             "postgres",
             DotNetSupportedDBMS.PostgreSql
+        },
+        {
+            "sqlserver",
+            DotNetSupportedDBMS.SqlServer
         }
     };
 

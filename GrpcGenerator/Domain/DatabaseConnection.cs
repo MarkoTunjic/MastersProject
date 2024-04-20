@@ -22,6 +22,10 @@ public class DatabaseConnection
 
     public string ToConnectionString()
     {
+        if (Provider == "sqlserver")
+        {
+            return $"Server={DatabaseServer};Database={DatabaseName};Uid={DatabaseUid};Pwd={DatabasePwd};";
+        }
         return
             $"Server={DatabaseServer};Port={DatabasePort};Database={DatabaseName};Uid={DatabaseUid};Pwd={DatabasePwd};";
     }
