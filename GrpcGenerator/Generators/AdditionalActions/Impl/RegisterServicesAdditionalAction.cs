@@ -9,18 +9,27 @@ public class RegisterServicesAdditionalAction : IAdditionalAction
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var lines = new List<string>(File.ReadLines(generatorVariables.ProjectDirectory + "/Program.cs"));
+        lines.RemoveAt(3);
+        
+        lines.Insert(0, $@"using {generatorVariables.ProjectName}.{NamespaceNames.MappersNamespace};
+using {generatorVariables.ProjectName}.Domain;
+using {generatorVariables.ProjectName}.Infrastructure;
+using {generatorVariables.ProjectName}.Application;
+using {generatorVariables.ProjectName}.Presentation;
+");
 
-        lines.Insert(0, $"using {generatorVariables.ProjectName}.{NamespaceNames.MappersNamespace};");
-        lines.Insert(1, $"using {generatorVariables.ProjectName}.Domain;");
-        lines.Insert(2, $"using {generatorVariables.ProjectName}.Infrastructure;");
-        lines.Insert(3, $"using {generatorVariables.ProjectName}.Application;");
+        lines.Insert(2, @"builder.Services.AddMappers();
+builder.Services.AddModels(builder.Configuration);
+builder.Services.AddInfrastructure();
+builder.Services.AddApplication();
+builder.Services.AddPresentation();
+");
 
-        lines.Insert(5, "builder.Services.AddMappers();");
-        lines.Insert(6, "builder.Services.AddModels(builder.Configuration);");
-        lines.Insert(7, "builder.Services.AddInfrastructure();");
-        lines.Insert(8, "builder.Services.AddApplication();");
-        lines.Insert(8, "builder.Services.AddPresentation();");
-
+        if (generatorVariables.Architecture == "rest")
+        {
+            lines.Insert(4,"app.AddPresentation();");
+        }
+        
         File.WriteAllLines(generatorVariables.ProjectDirectory + "/Program.cs", lines);
     }
 }

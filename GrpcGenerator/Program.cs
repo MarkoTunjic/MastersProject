@@ -12,7 +12,7 @@ using GrpcGenerator.Generators.MapperGenerators.Impl;
 using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Generators.PresentationGenerators;
-using GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.Rest.DotNet;
 using GrpcGenerator.Generators.RepositoryGenerators;
 using GrpcGenerator.Generators.RepositoryGenerators.Impl;
 using GrpcGenerator.Generators.ServiceGenerators;
@@ -46,10 +46,11 @@ var databaseUid = "postgres";
 var databasePwd = "bazepodataka";
 var provider = "postgres";
 var projectRoot = $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}";
+var architecture = "rest";
 var generatorVariables =
     new GeneratorVariables(
         new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid, provider),
-        newProjectName, newSolutionName, projectRoot, provider);
+        newProjectName, newSolutionName, projectRoot, provider, architecture);
 GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
 ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolutionName, oldProjectName,
@@ -58,7 +59,7 @@ ProjectRenamer.RenameDotNetProject($"{config["sourceCodeRoot"]}/{guid}", oldSolu
 ServicesProvider.SetServices(services.BuildServiceProvider());
 
 IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
-dependencyGenerator.GenerateDependencies(
+dependencyGenerator.GenerateDependencies(guid,
     $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}/{newProjectName}.csproj");
 
 IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
@@ -82,7 +83,7 @@ repositoryGenerator.GenerateRepositories(guid);
 IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
 serviceGenerator.GenerateServices(guid);
 
-IPresentationGenerator presentationGenerator = new DotNetGrpcPresentationGenerator();
+IPresentationGenerator presentationGenerator = new DotnetRestGenerator();
 presentationGenerator.GeneratePresentation(guid);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",

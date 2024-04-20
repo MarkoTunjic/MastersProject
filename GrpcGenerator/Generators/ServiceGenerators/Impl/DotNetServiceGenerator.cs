@@ -105,9 +105,13 @@ public class {modelName}Service : I{modelName}Service
             (current, keyValuePair) =>
                 current +
                 $", {DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, false, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])}");
-        var getAndSetForeignKeys = foreignKeys.Aggregate("",
-            (current, keyValuePair) => current +
-                                       $"\t\tmodel.{keyValuePair.Key} = await _unitOfWork.{keyValuePair.Key}Repository.Find{keyValuePair.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(keyValuePair.Value, true, char.ToLower(keyValuePair.Key[0]) + keyValuePair.Key[1..])});\n");
+        var getAndSetForeignKeys = "";
+        foreach (var key in foreignKeys)
+        {
+            getAndSetForeignKeys +=
+                $"\t\tvar found{key.Key} = await _unitOfWork.{key.Key}Repository.Find{key.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(key.Value, true, char.ToLower(key.Key[0]) + key.Key[1..])});\n";
+            getAndSetForeignKeys = key.Value.Aggregate(getAndSetForeignKeys, (current, fk) => current + $"\t\tmodel.{fk.Key.ColumnName} = found{key.Key}.{fk.Key.ForeignColumnName};\n");
+        }
         return
             $@"public async Task<{modelName}Dto> Create{modelName}Async({modelName}WriteDto new{modelName}{foreignKeyMethodArguments})
     {{
@@ -176,7 +180,7 @@ public class {modelName}Service : I{modelName}Service
     }}";
     }
 
-    private void GenerateNotFoundException(string uuid)
+    private static void GenerateNotFoundException(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Domain/Exceptions");

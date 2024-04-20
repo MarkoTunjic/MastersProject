@@ -10,4 +10,5 @@ public static class NamespaceNames
     public const string ServicesNamespace = "Application.Services";
     public const string RequestsNamespace = "Domain.Request";
     public const string ExceptionsNamespace = "Domain.Exceptions";
+    public const string ControllersNamespace = "Presentation.Controllers";
 }

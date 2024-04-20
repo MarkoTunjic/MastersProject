@@ -6,10 +6,17 @@ public class DotNetDatabaseConfigGenerator : IConfigGenerator
 {
     public void GenerateConfig(string pathToConfigDirectory, string uuid)
     {
+        GenerateConfigForFile(uuid,$"{pathToConfigDirectory}/appsettings.json");
+        GenerateConfigForFile(uuid,$"{pathToConfigDirectory}/appsettings.Development.json");
+    }
+
+    private static void  GenerateConfigForFile(string uuid, string file)
+    {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        var lines = new List<string>(File.ReadLines($"{pathToConfigDirectory}/appsettings.json"));
-        lines.Insert(1,
-            $"  \"DefaultConnection\": \"Server={generatorVariables.DatabaseConnection.DatabaseServer};Port={generatorVariables.DatabaseConnection.DatabasePort};Database={generatorVariables.DatabaseConnection.DatabaseName};Uid={generatorVariables.DatabaseConnection.DatabaseUid};Pwd={generatorVariables.DatabaseConnection.DatabasePwd}\",");
-        File.WriteAllLines($"{pathToConfigDirectory}/appsettings.json", lines);
+        var lines = new List<string>(File.ReadLines(file));
+        lines.Insert(1,$@"  ""ConnectionStrings"": {{
+    ""DefaultConnection"": ""{generatorVariables.DatabaseConnection.ToConnectionString()}""
+  }},");
+        File.WriteAllLines(file, lines);
     }
 }

@@ -19,4 +19,8 @@
         <None Remove="FirstSolution.zip"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <Folder Include="Generators\PresentationGenerators\Impl\Grpc\"/>
+    </ItemGroup>
+
 </Project>
