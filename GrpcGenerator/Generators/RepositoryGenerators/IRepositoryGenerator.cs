@@ -15,4 +15,7 @@ public interface IRepositoryGenerator
     public string GetFindAllMethodCode(string modelName);
     public string GetFindByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys);
     public string GetUpdateMethodCode(string modelName);
+
+    public string GetFindByForeignKeyMethodCode(string modelName,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys);
 }

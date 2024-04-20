@@ -61,7 +61,7 @@ import ""google/protobuf/empty.proto"";
             {
                 className = StringUtils.GetDotnetNameFromSqlName(className);
                 if (char.ToLower(className[^1]) == 's') className = className[..^1];
-                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+                DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
 
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 
@@ -94,7 +94,7 @@ import ""google/protobuf/empty.proto"";
             {
                 className = StringUtils.GetDotnetNameFromSqlName(className);
                 if (char.ToLower(className[^1]) == 's') className = className[..^1];
-                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+                DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
 
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 

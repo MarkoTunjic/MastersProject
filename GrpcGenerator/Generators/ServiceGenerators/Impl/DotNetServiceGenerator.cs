@@ -16,7 +16,7 @@ public class DotNetServiceGenerator : IServiceGenerator
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
-
+        GenerateCascadeDeleteService(uuid,modelNames);
         modelNames = modelNames.Select(modelName =>
         {
             modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
@@ -33,8 +33,8 @@ public class DotNetServiceGenerator : IServiceGenerator
     {
         modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
         if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
-        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
-
+        DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+        
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
 
@@ -46,10 +46,8 @@ public class DotNetServiceGenerator : IServiceGenerator
         var updateMethod = GetUpdateMethodCode(modelName, primaryKeys);
 
         var findByForeignKeysSplit = findByForeignKey.Split("\n\n");
-        var findByIdMethodDeclarations = findByForeignKeysSplit.Aggregate("",
-            (current, method) => method.Length > 0
-                ? current + $"{method[..method.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};\n"
-                : "");
+        var findByIdMethodDeclarations = findByForeignKeysSplit.Where(method=>method.Length > 0).Aggregate("",
+            (current, method) => current + $"{method[..method.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};\n");
         findByIdMethodDeclarations = findByIdMethodDeclarations.Trim();
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Service.cs"));
         interfaceStream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
@@ -159,8 +157,8 @@ public class {modelName}Service : I{modelName}Service
             result += "\t" +
                       $@"public async Task<List<{modelName}Dto>> Find{modelName}sBy{entry.Key}Id({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, false, foreignEntity)})
     {{
-        var {foreignEntity} = await _unitOfWork.{entry.Key}Repository.Find{entry.Key}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, foreignEntity)});
-        return _mapper.Map<List<{modelName}>, List<{modelName}Dto>>({foreignEntity}.{modelName}s.ToList());
+        var result = await _unitOfWork.{modelName}Repository.Find{modelName}sBy{entry.Key}IdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, true, foreignEntity)});
+        return _mapper.Map<List<{modelName}>, List<{modelName}Dto>>(result);
     }}
 
 ";
@@ -178,6 +176,82 @@ public class {modelName}Service : I{modelName}Service
         model = _mapper.Map<{modelName}WriteDto, {modelName}>(updated{modelName}, model);
         await _unitOfWork.{modelName}Repository.Update{modelName}Async(model);
     }}";
+    }
+
+    private static void GenerateCascadeDeleteService(string uuid,List<string> tables)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var servicesDeclaration = "";
+        var servicesAssignment = "";
+        var servicesArguments = "";
+        var deleteMethods = "";
+        foreach (var table in tables)
+        {
+            var name = StringUtils.GetDotnetNameFromSqlName(table);
+            if (char.ToLower(name[^1]) == 's') name = name[..^1];
+            if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{name}.cs"))
+            {
+                continue;
+            }
+            var variableName = char.ToLower(name[0]) + name[1..];
+            servicesDeclaration += $"\tprivate readonly I{name}Service _{variableName}Service;\n";
+            servicesAssignment += $"\t\t_{variableName}Service = {variableName}Service;\n\n";
+            servicesArguments += $", I{name}Service {variableName}Service";
+            var primaryKeys = DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
+                generatorVariables.DatabaseConnection.ToConnectionString(), table);
+            DotNetUtils.ConvertPrimaryKeysToDotnetNames(ref primaryKeys);
+            var references = DatabaseSchemaUtils.GetCascadeReferencedTables(uuid, table);
+            DotNetUtils.ConvertStringListToDotNetNames(ref references);
+            references = references.Where(el =>
+                File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{el}.cs")).ToList();
+            var cascadeDelete = "";
+            foreach (var reference in references)
+            {
+                var referenceVariableName = char.ToLower(reference[0]) + reference[1..];
+                cascadeDelete += $@"        var {referenceVariableName}References = await _unitOfWork.{reference}Repository.Find{reference}sBy{name}IdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys,true, "model.")});
+        foreach(var {referenceVariableName} in {referenceVariableName}References)
+        {{
+            await Delete{reference}Async({referenceVariableName});
+        }}
+
+";
+            }
+            servicesAssignment = servicesAssignment[..^1];
+            cascadeDelete = cascadeDelete.Length > 0 ? cascadeDelete[..^2]:"";
+            deleteMethods += $@"
+    private async Task Delete{name}Async({name} model)
+    {{
+{cascadeDelete}
+        await _{variableName}Service.Delete{name}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, "model.")});
+    }}
+
+    public async Task Delete{name}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false, variableName)})
+    {{
+        var model = await _unitOfWork.{name}Repository.Find{name}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, variableName)});
+{cascadeDelete}
+        await _{variableName}Service.Delete{name}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, variableName)});
+    }}";
+        }
+        using var stream =
+            new StreamWriter(
+                File.Create($"{generatorVariables.ProjectDirectory}/Application/Services/CascadeDeleteService.cs"));
+        stream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
+using {NamespaceNames.ModelsNamespace};
+using {generatorVariables.ProjectName}.{NamespaceNames.UnitOfWorkNamespace};
+
+namespace {generatorVariables.ProjectName}.Application.Services;
+public class CascadeDeleteService 
+{{
+    private readonly IUnitOfWork _unitOfWork;
+{servicesDeclaration}
+    public CascadeDeleteService(IUnitOfWork unitOfWork{servicesArguments})
+    {{
+        _unitOfWork = unitOfWork;
+{servicesAssignment}
+    }}
+{deleteMethods}
+}}
+");
     }
 
     private static void GenerateNotFoundException(string uuid)
@@ -223,6 +297,7 @@ public static class ApplicationServiceRegistration
 {{
     public static void AddApplication(this IServiceCollection services)
     {{");
+        stream.WriteLine("\t\tservices.AddTransient<CascadeDeleteService>();");
         foreach (var modelName in modelNames.Where(modelName =>
                      File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Service, {modelName}Service>();");

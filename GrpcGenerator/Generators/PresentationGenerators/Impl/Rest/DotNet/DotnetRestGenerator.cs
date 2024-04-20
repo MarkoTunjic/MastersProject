@@ -23,7 +23,7 @@ public class DotnetRestGenerator : IPresentationGenerator
                 var modelName = StringUtils.GetDotnetNameFromSqlName(tableName);
                 if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
-                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+                DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
                 GenerateController(uuid, modelName, primaryKeys, foreignKeys);
             });
     }
@@ -57,9 +57,12 @@ namespace {generatorVariables.ProjectName}.{NamespaceNames.ControllersNamespace}
 public class {modelName}Controller : ControllerBase
 {{
     private readonly I{modelName}Service _{modelFieldName}Service;
-    public {modelName}Controller(I{modelName}Service {modelFieldName}Service)
+    private readonly CascadeDeleteService _cascadeDeleteService;
+
+    public {modelName}Controller(I{modelName}Service {modelFieldName}Service, CascadeDeleteService cascadeDeleteService)
     {{
         _{modelFieldName}Service = {modelFieldName}Service;
+        _cascadeDeleteService = cascadeDeleteService;
     }}
 
     {GetFindAllMethodCode(modelName, foreignKeys)}
@@ -114,7 +117,7 @@ public class {modelName}Controller : ControllerBase
     [Route(""{route}/{modelName}"")]
     public async Task<ActionResult> Delete{modelName}ById({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        await {service}.Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        await _cascadeDeleteService.Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
         return NoContent();
     }}";
     }

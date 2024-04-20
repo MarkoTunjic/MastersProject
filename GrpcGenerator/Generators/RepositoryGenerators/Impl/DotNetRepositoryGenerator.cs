@@ -17,7 +17,8 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
 
         Directory.CreateDirectory($"{targetDirectory}/Impl");
 
-        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
+        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid,
+            generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnection.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
@@ -39,7 +40,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
     {
         modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
         if (char.ToLower(modelName[^1]) == 's') modelName = modelName[..^1];
-        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+        DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
 
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
@@ -49,6 +50,11 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
         var readAllMethod = GetFindAllMethodCode(modelName);
         var findById = GetFindByIdMethodCode(modelName, primaryKeys);
         var updateMethod = GetUpdateMethodCode(modelName);
+        var findByForeignKey = GetFindByForeignKeyMethodCode(modelName, foreignKeys);
+        var findByForeignKeysSplit = findByForeignKey.Split("\n\n");
+        var findByIdMethodDeclarations = findByForeignKeysSplit.Where(method=>method.Length > 0).Aggregate("",
+            (current, method) => current + $"{method[..method.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};\n");
+        findByIdMethodDeclarations = findByIdMethodDeclarations.Trim();
         using var interfaceStream = new StreamWriter(File.Create($"{targetDirectory}/I{modelName}Repository.cs"));
         interfaceStream.Write($@"using {NamespaceNames.ModelsNamespace};
 
@@ -60,6 +66,7 @@ public interface I{modelName}Repository
     {readAllMethod[..readAllMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
     {findById[..findById.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
     {updateMethod[..updateMethod.IndexOf("\n", StringComparison.Ordinal)].Replace(" async", "")};
+    {findByIdMethodDeclarations}
 }}
 ");
         using var classStream = new StreamWriter(File.Create($"{targetDirectory}/Impl/{modelName}Repository.cs"));
@@ -86,6 +93,8 @@ public class {modelName}Repository : I{modelName}Repository
     {findById}
 
     {updateMethod}
+
+{GetFindByForeignKeyMethodCode(modelName, foreignKeys)}
 }}
 ");
     }
@@ -142,7 +151,33 @@ public class {modelName}Repository : I{modelName}Repository
     }}";
     }
 
-    private static void GenerateUnitOfWork(string uuid, List<string> modelNames)
+    public string GetFindByForeignKeyMethodCode(string modelName,
+        Dictionary<string, Dictionary<ForeignKey, Type>> foreignKeys)
+    {
+        var result = "";
+        foreach (var entry in foreignKeys)
+        {
+            var foreignEntity = char.ToLower(entry.Key[0]) + entry.Key[1..];
+            var query = entry.Value.Aggregate("",
+                (current, fk) => current + $"x.{fk.Key.ColumnName} == {foreignEntity}{fk.Key.ForeignColumnName} && ");
+
+            query = query[..^4];
+            result += "\t" +
+                      $@"public async Task<List<{modelName}>> Find{modelName}sBy{entry.Key}IdAsync({DatabaseSchemaUtils.GetMethodInputForForeignKeys(entry.Value, false, foreignEntity)})
+    {{
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var result = _dbContext.Set<{modelName}>().Where(x => {query}).ToList();
+        await transaction.CommitAsync();
+        return result;
+    }}
+
+";
+        }
+
+        return result;
+    }
+
+private static void GenerateUnitOfWork(string uuid, List<string> modelNames)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Infrastructure/Utils");

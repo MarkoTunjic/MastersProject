@@ -20,7 +20,7 @@ public class DotNetGrpcServicesGenerator : IPresentationGenerator
             {
                 className = StringUtils.GetDotnetNameFromSqlName(className);
                 if (char.ToLower(className[^1]) == 's') className = className[..^1];
-                DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
+                DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
 
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
                 var variableName = char.ToLower(className[0]) + className[1..];
@@ -39,11 +39,13 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
 {{
     private readonly I{className}Service _{variableName}Service;
     private readonly IMapper _mapper;
+    private readonly CascadeDeleteService _cascadeDeleteService;
 
-    public Grpc{className}ServiceImpl(I{className}Service {variableName}Service, IMapper mapper)
+    public Grpc{className}ServiceImpl(I{className}Service {variableName}Service, IMapper mapper, CascadeDeleteService cascadeDeleteService)
     {{
         _{variableName}Service = {variableName}Service;
         _mapper = mapper;
+        _cascadeDeleteService = cascadeDeleteService;
     }}
     
     {GetFindByIdMethodCode(className, primaryKeys)}
@@ -97,7 +99,7 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
         return
             $@"public override async Task<Empty> Delete{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
     {{
-        await _{variableName}Service.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
+        await _cascadeDeleteService.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
     
         return new Empty();
     }}";

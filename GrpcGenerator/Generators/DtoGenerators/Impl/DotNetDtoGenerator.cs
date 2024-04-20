@@ -25,7 +25,7 @@ public class DotNetDtoGenerator : IDtoGenerator
     {
         className = StringUtils.GetDotnetNameFromSqlName(className);
         if (char.ToLower(className[^1]) == 's') className = className[..^1];
-        DotNetUtils.CovertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeysAndTypes, ref foreignKeys);
+        DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeysAndTypes, ref foreignKeys);
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
 
