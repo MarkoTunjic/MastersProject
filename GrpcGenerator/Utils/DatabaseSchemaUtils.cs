@@ -54,6 +54,41 @@ INNER JOIN sys.columns col1
 INNER JOIN sys.tables tab2
     ON tab2.object_id = fkc.referenced_object_id"}
     };
+    
+    private static readonly Dictionary<string, string> ReferencedTablesQuery = new()
+    {
+        {
+            "postgres", @"SELECT DISTINCT
+    tc.table_name AS table_name,
+    kcu.column_name AS column_name
+FROM information_schema.table_constraints AS tc 
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+JOIN information_schema.columns col
+	ON kcu.table_name = col.table_name
+	AND kcu.column_name = col.column_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+    AND ccu.table_name = @tableName;"
+        },
+        {"sqlserver", @"SELECT tab1.name AS table_name,
+       col1.name AS column_name
+FROM sys.foreign_key_columns fkc
+INNER JOIN sys.objects obj
+    ON obj.object_id = fkc.constraint_object_id
+INNER JOIN sys.tables tab1
+    ON tab1.object_id = fkc.parent_object_id
+INNER JOIN sys.tables tab2
+    ON tab2.object_id = fkc.referenced_object_id AND tab2.name = @tableName
+INNER JOIN sys.schemas sch
+    ON tab2.schema_id = sch.schema_id
+INNER JOIN sys.columns col1
+    ON col1.column_id = parent_column_id AND col1.object_id = tab1.object_id"}
+    };
+    
+    
 
     private static readonly Dictionary<string, Func<DbParameterVariables, DbParameter>> TableParamGetter = new()
     {
@@ -115,7 +150,6 @@ INNER JOIN sys.tables tab2
                 ?.PrimaryKey
                 .ToDictionary(c => c.ColumnName, c => c.DataType)!;
             var foreignKeys = GetForeignKeys(uuid, tableName, tableSchema);
-
             action.Invoke(tableName, primaryKeys, foreignKeys);
             tableNames.Add(tableName);
         }
@@ -184,7 +218,7 @@ INNER JOIN sys.tables tab2
         return result;
     }
 
-    public static Dictionary<string, Dictionary<ForeignKey, Type>> GetForeignKeys(string uuid, string tableName,
+    private static Dictionary<string, Dictionary<ForeignKey, Type>> GetForeignKeys(string uuid, string tableName,
         string tableSchema)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
@@ -228,6 +262,43 @@ INNER JOIN sys.tables tab2
                     generatorVariables.DatabaseConnection.ToConnectionString(),
                     foreignTableName)
                 .ToDictionary(entry => new ForeignKey(columnName, entry.Key), entry => entry.Value);
+        }
+
+        return result;
+    }
+    
+    public static List<string> GetCascadeReferencedTables(string uuid, string tableName)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+
+        using var connection = ConnectionGetters[generatorVariables.DatabaseProvider]
+            .Invoke(generatorVariables.DatabaseConnection.ToConnectionString());
+        connection.Open();
+
+        using var sqlCommand = connection.CreateCommand();
+        sqlCommand.CommandText = ReferencedTablesQuery[generatorVariables.DatabaseProvider];
+
+        ForeignKeysCommandPrepearer[generatorVariables.DatabaseProvider].Invoke(
+            generatorVariables.DatabaseProvider,
+            new List<DbParameterVariables>
+            {
+                new(
+                    "@tableName",
+                    DbType.String,
+                    StringUtils.GetSqlNameFromDotnetName(tableName),
+                    100
+                )
+            }
+            , sqlCommand);
+
+        sqlCommand.Prepare();
+        var reader = sqlCommand.ExecuteReader();
+        var result = new List<string>();
+        if (!reader.HasRows) return result;
+        while (reader.Read())
+        {
+            var table = reader.GetString("table_name");
+            result.Add(table);
         }
 
         return result;

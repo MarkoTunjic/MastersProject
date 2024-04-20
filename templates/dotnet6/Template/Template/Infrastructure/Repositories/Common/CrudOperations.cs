@@ -28,6 +28,14 @@ public static class CrudOperations
         await transaction.CommitAsync();
     }
     
+    public static async Task DeleteAllAsync<T>(List<T> entities, DbContext context) where T : class
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        context.Set<T>().RemoveAll(entities);
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+    
     public static async Task<List<T>> FindAllAsync<T>(DbContext context) where T : class
     {
         await using var transaction = await context.Database.BeginTransactionAsync();
