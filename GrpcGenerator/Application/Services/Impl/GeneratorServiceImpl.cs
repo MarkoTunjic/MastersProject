@@ -31,25 +31,24 @@ public class GeneratorServiceImpl : IGeneratorService
         _configuration = configuration;
     }
     
-    public byte[] GetZipProject(string solutionName, string projectName, string databaseName, string databaseServer,
-        string databasePort, string databaseUid, string databasePwd, string provider, string architecture)
+    public byte[] GetZipProject(GenerationRequest generationRequest)
     {
         var guid = Guid.NewGuid().ToString();
         byte[] result;
         try
         {
-            const string oldSolutionName = "Template";
-            const string oldProjectName = "Template";
+            var oldSolutionName = _configuration["oldSolutionName"]!;
+            var oldProjectName = _configuration["oldProjectName"]!;
 
             Copier.CopyDirectory($"{_configuration["sourceCodeRoot"]}/templates/dotnet6/{oldSolutionName}",
                 $"{_configuration["sourceCodeRoot"]}/{guid}/{oldSolutionName}");
 
-            var projectRoot = $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}";
+            var projectRoot = $"{_configuration["sourceCodeRoot"]}/{guid}/{generationRequest.SolutionName}/{generationRequest.ProjectName}";
             var generatorVariables =
                 new GeneratorVariables(
-                    new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid,
-                        provider),
-                    projectName, solutionName, projectRoot, provider, architecture);
+                    new DatabaseConnection(generationRequest.DatabaseServer, generationRequest.DatabaseName, generationRequest.DatabasePort, generationRequest.DatabasePwd, generationRequest.DatabaseUid,
+                        generationRequest.Provider),
+                    generationRequest.ProjectName, generationRequest.SolutionName, projectRoot, generationRequest.Provider, generationRequest.Architecture);
             GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
             ProjectRenamer.RenameDotNetProject($"{_configuration["sourceCodeRoot"]}/{guid}", oldSolutionName,
@@ -57,11 +56,11 @@ public class GeneratorServiceImpl : IGeneratorService
                 guid);
             IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
             dependencyGenerator.GenerateDependencies(guid,
-                $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}/{projectName}.csproj");
+                $"{_configuration["sourceCodeRoot"]}/{guid}/{generationRequest.SolutionName}/{generationRequest.ProjectName}/{generationRequest.ProjectName}.csproj");
 
             IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
             databaseConfigGenerator.GenerateConfig(
-                $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}", guid);
+                $"{_configuration["sourceCodeRoot"]}/{guid}/{generationRequest.SolutionName}/{generationRequest.ProjectName}", guid);
 
             IModelGenerator modelGenerator = new EfCoreModelGenerator();
             modelGenerator.GenerateModels(guid);
@@ -82,14 +81,14 @@ public class GeneratorServiceImpl : IGeneratorService
             serviceGenerator.GenerateServices(guid);
 
             IPresentationGenerator presentationGenerator =
-                architecture == "grpc" ? new DotNetGrpcPresentationGenerator() : new DotnetRestGenerator();
+                generationRequest.Architecture == "grpc" ? new DotNetGrpcPresentationGenerator() : new DotnetRestGenerator();
             presentationGenerator.GeneratePresentation(guid);
 
             Directory.CreateDirectory($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}");
             Zipper.ZipDirectory($"{_configuration["sourceCodeRoot"]}/{guid}",
-                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{solutionName}.zip");
+                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{generationRequest.SolutionName}.zip");
             result = File.ReadAllBytes(
-                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{solutionName}.zip");
+                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{generationRequest.SolutionName}.zip");
         }
         finally
         {

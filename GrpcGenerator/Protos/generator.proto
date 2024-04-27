@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+service Generator {
+  rpc GenerateProject (GenerationRequestMessage) returns (GenerationReply);
+}
+
+message GenerationRequestMessage {
+  string solutionName = 1;
+  string projectName = 2;
+  string databaseName = 3;
+  string databaseServer = 4;
+  string databasePort = 5;
+  string databaseUid = 6;
+  string databasePwd = 7;
+  string provider = 8;
+  string architecture = 9;
+}
+
+message GenerationReply {
+  bytes zip = 1;
+}
