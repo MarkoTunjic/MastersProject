@@ -1,3 +1,5 @@
+using GrpcGenerator.Application.Services;
+using GrpcGenerator.Application.Services.Impl;
 using GrpcGenerator.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddGrpc();
+builder.Services.AddTransient<IGeneratorService, GeneratorServiceImpl>();
 
 var app = builder.Build();
 

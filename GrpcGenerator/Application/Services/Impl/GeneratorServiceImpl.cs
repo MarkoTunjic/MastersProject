@@ -1,0 +1,102 @@
+using GrpcGenerator.Domain;
+using GrpcGenerator.Generators.AdditionalActions;
+using GrpcGenerator.Generators.AdditionalActions.Impl;
+using GrpcGenerator.Generators.ConfigGenerators;
+using GrpcGenerator.Generators.ConfigGenerators.Impl;
+using GrpcGenerator.Generators.DependencyGenerators;
+using GrpcGenerator.Generators.DependencyGenerators.Impl;
+using GrpcGenerator.Generators.DtoGenerators;
+using GrpcGenerator.Generators.DtoGenerators.Impl;
+using GrpcGenerator.Generators.MapperGenerators;
+using GrpcGenerator.Generators.MapperGenerators.Impl;
+using GrpcGenerator.Generators.ModelGenerators;
+using GrpcGenerator.Generators.ModelGenerators.Impl;
+using GrpcGenerator.Generators.PresentationGenerators;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.Rest.DotNet;
+using GrpcGenerator.Generators.RepositoryGenerators;
+using GrpcGenerator.Generators.RepositoryGenerators.Impl;
+using GrpcGenerator.Generators.ServiceGenerators;
+using GrpcGenerator.Generators.ServiceGenerators.Impl;
+using GrpcGenerator.Utils;
+
+namespace GrpcGenerator.Application.Services.Impl;
+
+public class GeneratorServiceImpl : IGeneratorService
+{
+    private readonly IConfiguration _configuration;
+
+    public GeneratorServiceImpl(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+    
+    public byte[] GetZipProject(string solutionName, string projectName, string databaseName, string databaseServer,
+        string databasePort, string databaseUid, string databasePwd, string provider, string architecture)
+    {
+        var guid = Guid.NewGuid().ToString();
+        byte[] result;
+        try
+        {
+            const string oldSolutionName = "Template";
+            const string oldProjectName = "Template";
+
+            Copier.CopyDirectory($"{_configuration["sourceCodeRoot"]}/templates/dotnet6/{oldSolutionName}",
+                $"{_configuration["sourceCodeRoot"]}/{guid}/{oldSolutionName}");
+
+            var projectRoot = $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}";
+            var generatorVariables =
+                new GeneratorVariables(
+                    new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid,
+                        provider),
+                    projectName, solutionName, projectRoot, provider, architecture);
+            GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
+
+            ProjectRenamer.RenameDotNetProject($"{_configuration["sourceCodeRoot"]}/{guid}", oldSolutionName,
+                oldProjectName,
+                guid);
+            IDependencyGenerator dependencyGenerator = new DotNetDependencyGenerator();
+            dependencyGenerator.GenerateDependencies(guid,
+                $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}/{projectName}.csproj");
+
+            IConfigGenerator databaseConfigGenerator = new DotNetDatabaseConfigGenerator();
+            databaseConfigGenerator.GenerateConfig(
+                $"{_configuration["sourceCodeRoot"]}/{guid}/{solutionName}/{projectName}", guid);
+
+            IModelGenerator modelGenerator = new EfCoreModelGenerator();
+            modelGenerator.GenerateModels(guid);
+
+            IDtoGenerator dtoGenerator = new DotNetDtoGenerator();
+            dtoGenerator.GenerateDtos(guid);
+
+            IMapperGenerator mapperGenerator = new DotnetMapperGenerator();
+            mapperGenerator.GenerateMappers(guid);
+
+            IAdditionalAction registerServices = new RegisterServicesAdditionalAction();
+            registerServices.DoAdditionalAction(guid);
+
+            IRepositoryGenerator repositoryGenerator = new DotNetRepositoryGenerator();
+            repositoryGenerator.GenerateRepositories(guid);
+
+            IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
+            serviceGenerator.GenerateServices(guid);
+
+            IPresentationGenerator presentationGenerator =
+                architecture == "grpc" ? new DotNetGrpcPresentationGenerator() : new DotnetRestGenerator();
+            presentationGenerator.GeneratePresentation(guid);
+
+            Directory.CreateDirectory($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}");
+            Zipper.ZipDirectory($"{_configuration["sourceCodeRoot"]}/{guid}",
+                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{solutionName}.zip");
+            result = File.ReadAllBytes(
+                $"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}/{solutionName}.zip");
+        }
+        finally
+        {
+            Directory.Delete($"{_configuration["sourceCodeRoot"]}/{guid}", true);
+            Directory.Delete($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}",true);
+        }
+
+        return result;
+    }
+}
