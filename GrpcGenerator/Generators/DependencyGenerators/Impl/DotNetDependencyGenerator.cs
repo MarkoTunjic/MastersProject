@@ -21,11 +21,8 @@ public class DotNetDependencyGenerator : IDependencyGenerator
         }
         if (generatorVariables.Architecture == "grpc")
         {
-            lines.Insert(9, @"    <ItemGroup>
-        <Protobuf Include=""Protos/protofile.proto"" />
-    </ItemGroup>");
-            lines.Insert(9,
-                @"      <PackageReference Include=""Grpc.AspNetCore"" Version=""2.60.0"" />
+            lines.Insert(9, @"    <Protobuf Include=""Protos/protofile.proto"" />
+      <PackageReference Include=""Grpc.AspNetCore"" Version=""2.60.0"" />
       <PackageReference Include=""Grpc.Tools"" Version=""2.60.0"">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

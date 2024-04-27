@@ -12,6 +12,7 @@ using GrpcGenerator.Generators.MapperGenerators.Impl;
 using GrpcGenerator.Generators.ModelGenerators;
 using GrpcGenerator.Generators.ModelGenerators.Impl;
 using GrpcGenerator.Generators.PresentationGenerators;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
 using GrpcGenerator.Generators.PresentationGenerators.Impl.Rest.DotNet;
 using GrpcGenerator.Generators.RepositoryGenerators;
 using GrpcGenerator.Generators.RepositoryGenerators.Impl;
@@ -46,7 +47,7 @@ var databaseUid = "sa";
 var databasePwd = "Drvahagn10.";
 var provider = "sqlserver";
 var projectRoot = $"{config["sourceCodeRoot"]}/{guid}/{newSolutionName}/{newProjectName}";
-var architecture = "rest";
+var architecture = "grpc";
 var generatorVariables =
     new GeneratorVariables(
         new DatabaseConnection(databaseServer, databaseName, databasePort, databasePwd, databaseUid, provider),
@@ -83,7 +84,7 @@ repositoryGenerator.GenerateRepositories(guid);
 IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
 serviceGenerator.GenerateServices(guid);
 
-IPresentationGenerator presentationGenerator = new DotnetRestGenerator();
+IPresentationGenerator presentationGenerator = architecture == "grpc" ? new DotNetGrpcPresentationGenerator() : new DotnetRestGenerator();
 presentationGenerator.GeneratePresentation(guid);
 
 Zipper.ZipDirectory($"{config["sourceCodeRoot"]}/{guid}",
