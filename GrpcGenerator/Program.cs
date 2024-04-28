@@ -1,11 +1,13 @@
 using GrpcGenerator.Application.Services;
 using GrpcGenerator.Application.Services.Impl;
+using GrpcGenerator.Domain.Mappers;
 using GrpcGenerator.GrpcServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddGrpc();
 builder.Services.AddTransient<IGeneratorService, GeneratorServiceImpl>();
+builder.Services.AddMappers();
 
 var app = builder.Build();
 

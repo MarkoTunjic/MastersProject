@@ -39,7 +39,7 @@ public class GeneratorServiceImpl : IGeneratorService
         {
             var oldSolutionName = _configuration["oldSolutionName"]!;
             var oldProjectName = _configuration["oldProjectName"]!;
-
+            
             Copier.CopyDirectory($"{_configuration["sourceCodeRoot"]}/templates/dotnet6/{oldSolutionName}",
                 $"{_configuration["sourceCodeRoot"]}/{guid}/{oldSolutionName}");
 
@@ -94,6 +94,7 @@ public class GeneratorServiceImpl : IGeneratorService
         {
             Directory.Delete($"{_configuration["sourceCodeRoot"]}/{guid}", true);
             Directory.Delete($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}",true);
+            GeneratorVariablesProvider.RemoveVariables(guid);
         }
 
         return result;

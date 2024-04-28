@@ -15,4 +15,9 @@ public static class GeneratorVariablesProvider
     {
         return GeneratorVariablesMap[uuid];
     }
+    
+    public static void RemoveVariables(string uuid)
+    {
+        GeneratorVariablesMap.Remove(uuid);
+    }
 }
