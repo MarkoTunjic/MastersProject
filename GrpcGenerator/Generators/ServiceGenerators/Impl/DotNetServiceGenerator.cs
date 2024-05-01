@@ -13,7 +13,7 @@ public class DotNetServiceGenerator : IServiceGenerator
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Application/Services";
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
         GenerateCascadeDeleteService(uuid,modelNames);
@@ -198,7 +198,7 @@ public class {modelName}Service : I{modelName}Service
             servicesAssignment += $"\t\t_{variableName}Service = {variableName}Service;\n\n";
             servicesArguments += $", I{name}Service {variableName}Service";
             var primaryKeys = DatabaseSchemaUtils.GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
-                generatorVariables.DatabaseConnection.ToConnectionString(), table);
+                generatorVariables.DatabaseConnectionData.ToConnectionString(), table);
             DotNetUtils.ConvertPrimaryKeysToDotnetNames(ref primaryKeys);
             var references = DatabaseSchemaUtils.GetCascadeReferencedTables(uuid, table);
             DotNetUtils.ConvertStringListToDotNetNames(ref references);

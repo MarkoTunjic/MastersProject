@@ -2,24 +2,23 @@ namespace GrpcGenerator.Domain;
 
 public class GeneratorVariables
 {
-    public GeneratorVariables(DatabaseConnection databaseConnection, string projectName, string solutionName,
-        string projectDirectory, string databaseProvider, string architecture)
+    public GeneratorVariables(DatabaseConnectionData databaseConnectionData, string projectName, string solutionName,
+        string projectDirectory, string databaseProvider, string architecture, List<string> includedTables)
     {
-        DatabaseConnection = databaseConnection;
+        DatabaseConnectionData = databaseConnectionData;
         ProjectName = projectName;
         SolutionName = solutionName;
         ProjectDirectory = projectDirectory;
         DatabaseProvider = databaseProvider;
         Architecture = architecture;
+        IncludedTables = includedTables;
     }
 
-    public DatabaseConnection DatabaseConnection { get; set; }
+    public DatabaseConnectionData DatabaseConnectionData { get; set; }
     public string ProjectName { get; set; }
     public string SolutionName { get; set; }
     public string ProjectDirectory { get; set; }
-
     public string DatabaseProvider { get; set; }
-    
     public string Architecture { get; set; }
-
+    public List<string>? IncludedTables { get; set; }
 }

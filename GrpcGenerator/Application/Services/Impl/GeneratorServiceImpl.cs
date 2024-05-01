@@ -46,9 +46,9 @@ public class GeneratorServiceImpl : IGeneratorService
             var projectRoot = $"{_configuration["sourceCodeRoot"]}/{guid}/{generationRequest.SolutionName}/{generationRequest.ProjectName}";
             var generatorVariables =
                 new GeneratorVariables(
-                    new DatabaseConnection(generationRequest.DatabaseServer, generationRequest.DatabaseName, generationRequest.DatabasePort, generationRequest.DatabasePwd, generationRequest.DatabaseUid,
-                        generationRequest.Provider),
-                    generationRequest.ProjectName, generationRequest.SolutionName, projectRoot, generationRequest.Provider, generationRequest.Architecture);
+                    new DatabaseConnectionData(generationRequest.DatabaseConnectionData.DatabaseServer, generationRequest.DatabaseConnectionData.DatabaseName, generationRequest.DatabaseConnectionData.DatabasePort, generationRequest.DatabaseConnectionData.DatabasePwd, generationRequest.DatabaseConnectionData.DatabaseUid,
+                        generationRequest.DatabaseConnectionData.Provider),
+                    generationRequest.ProjectName, generationRequest.SolutionName, projectRoot, generationRequest.DatabaseConnectionData.Provider, generationRequest.Architecture, generationRequest.IncludedTables);
             GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
             ProjectRenamer.RenameDotNetProject($"{_configuration["sourceCodeRoot"]}/{guid}", oldSolutionName,
@@ -98,5 +98,13 @@ public class GeneratorServiceImpl : IGeneratorService
         }
 
         return result;
+    }
+
+    public List<string> GetAvailableTables(DatabaseConnectionData databaseConnectionData)
+    {
+        var guid = Guid.NewGuid().ToString();
+
+        return DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(guid, databaseConnectionData.Provider,
+            databaseConnectionData.ToConnectionString(), null, (_) => false);
     }
 }

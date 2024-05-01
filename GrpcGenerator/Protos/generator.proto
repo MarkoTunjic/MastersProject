@@ -2,20 +2,30 @@ syntax = "proto3";
 
 service Generator {
   rpc GenerateProject (GenerationRequestMessage) returns (GenerationReply);
+  rpc GetAvailableTables (GrpcDatabaseConnectionData) returns (AvailableTablesReply);
 }
 
 message GenerationRequestMessage {
   string solutionName = 1;
   string projectName = 2;
-  string databaseName = 3;
-  string databaseServer = 4;
-  string databasePort = 5;
-  string databaseUid = 6;
-  string databasePwd = 7;
-  string provider = 8;
-  string architecture = 9;
+  GrpcDatabaseConnectionData databaseConnectionData = 3;
+  string architecture = 4;
+  repeated string includedTables = 5;
+}
+
+message GrpcDatabaseConnectionData {
+  string databaseName = 1;
+  string databaseServer = 2;
+  string databasePort = 3;
+  string databaseUid = 4;
+  string databasePwd = 5;
+  string provider = 6;
 }
 
 message GenerationReply {
   bytes zip = 1;
+}
+
+message AvailableTablesReply {
+  repeated string availableTables = 1;
 }

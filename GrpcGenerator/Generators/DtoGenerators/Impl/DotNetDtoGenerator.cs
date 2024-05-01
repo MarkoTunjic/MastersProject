@@ -15,7 +15,7 @@ public class DotNetDtoGenerator : IDtoGenerator
 
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid,
             generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (tableName, primaryKeys, foreignKeys) => GenerateDto(uuid, tableName, primaryKeys, foreignKeys,
                 destinationDirectory, packageName));
     }

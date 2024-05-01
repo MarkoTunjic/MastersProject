@@ -15,7 +15,7 @@ public class DotNetDatabaseConfigGenerator : IConfigGenerator
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         var lines = new List<string>(File.ReadLines(file));
         lines.Insert(1,$@"  ""ConnectionStrings"": {{
-    ""DefaultConnection"": ""{generatorVariables.DatabaseConnection.ToConnectionString()}""
+    ""DefaultConnection"": ""{generatorVariables.DatabaseConnectionData.ToConnectionString()}""
   }},");
         File.WriteAllLines(file, lines);
     }

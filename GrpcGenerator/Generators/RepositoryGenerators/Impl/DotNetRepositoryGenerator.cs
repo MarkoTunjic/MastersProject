@@ -19,7 +19,7 @@ public class DotNetRepositoryGenerator : IRepositoryGenerator
 
         var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid,
             generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateRepository(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
 
@@ -77,9 +77,9 @@ using {NamespaceNames.ExceptionsNamespace};
 namespace {generatorVariables.ProjectName}.{NamespaceNames.RepositoryNamespace}.Impl;
 public class {modelName}Repository : I{modelName}Repository
 {{
-    private readonly {generatorVariables.DatabaseConnection.DatabaseName}Context _dbContext;
+    private readonly {generatorVariables.DatabaseConnectionData.DatabaseName}Context _dbContext;
     
-    public {modelName}Repository({generatorVariables.DatabaseConnection.DatabaseName}Context dbContext)
+    public {modelName}Repository({generatorVariables.DatabaseConnectionData.DatabaseName}Context dbContext)
     {{
         this._dbContext = dbContext;
     }}

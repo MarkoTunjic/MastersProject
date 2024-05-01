@@ -25,4 +25,13 @@ public class GrpcGeneratorService : Generator.GeneratorBase
             Zip = Google.Protobuf.ByteString.CopyFrom(result)
         });
     }
+
+    public override Task<AvailableTablesReply> GetAvailableTables(GrpcDatabaseConnectionData request, ServerCallContext context)
+    {
+        var result = _generatorService.GetAvailableTables(_mapper.Map<GrpcDatabaseConnectionData, DatabaseConnectionData>(request));
+        return Task.FromResult(new AvailableTablesReply
+        {
+            AvailableTables = { result }
+        });
+    }
 }

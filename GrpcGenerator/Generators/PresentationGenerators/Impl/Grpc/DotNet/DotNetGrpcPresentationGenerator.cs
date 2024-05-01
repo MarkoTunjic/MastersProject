@@ -1,4 +1,5 @@
 using GrpcGenerator.Generators.MapperGenerators.Impl;
+using GrpcGenerator.Generators.PresentationGenerators.Impl.Grpc.DotNet;
 using GrpcGenerator.Utils;
 
 namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
@@ -39,7 +40,7 @@ public static class PresentationServiceRegistration
         var serviceRegistration = Directory.EnumerateFiles(pathToModels)
             .Select(modelName => modelName.Replace(".cs", ""))
             .Select(modelName=>modelName[(modelName.LastIndexOf("/", StringComparison.Ordinal)+1)..])
-            .Where(modelName => modelName != $"{generatorVariables.DatabaseConnection.DatabaseName}Context")
+            .Where(modelName => modelName != $"{generatorVariables.DatabaseConnectionData.DatabaseName}Context")
             .Aggregate("", (current, className) => current + $"\t\tapp.MapGrpcService<Grpc{className}ServiceImpl>();\n");
 
         serviceRegistration = serviceRegistration[..^1];

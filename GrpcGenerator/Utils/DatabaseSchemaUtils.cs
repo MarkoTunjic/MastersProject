@@ -133,7 +133,7 @@ INNER JOIN sys.columns col1
 
     public static List<string> FindTablesAndExecuteActionForEachTable(string uuid, string provider,
         string connectionString,
-        Action<string, Dictionary<string, Type>, Dictionary<string, Dictionary<ForeignKey, Type>>> action)
+        Action<string, Dictionary<string, Type>, Dictionary<string, Dictionary<ForeignKey, Type>>>? action, Func<string, bool>? shouldExecute=null)
     {
         var conn = ConnectionGetters[provider].Invoke(connectionString);
         conn.Open();
@@ -142,6 +142,11 @@ INNER JOIN sys.columns col1
         foreach (DataRow tableInfo in allTablesSchemaTable.Rows)
         {
             var tableName = (string)tableInfo.ItemArray[2]!;
+            tableNames.Add(tableName);
+            if (shouldExecute != null && !shouldExecute.Invoke(tableName))
+            {
+                continue;
+            }
             var tableSchema = (string)tableInfo.ItemArray[1]!;
             using var adapter = DataAdapterGetters[provider].Invoke(tableName, conn);
             using var table = new DataTable(tableName);
@@ -150,8 +155,7 @@ INNER JOIN sys.columns col1
                 ?.PrimaryKey
                 .ToDictionary(c => c.ColumnName, c => c.DataType)!;
             var foreignKeys = GetForeignKeys(uuid, tableName, tableSchema);
-            action.Invoke(tableName, primaryKeys, foreignKeys);
-            tableNames.Add(tableName);
+            action?.Invoke(tableName, primaryKeys, foreignKeys);
         }
 
         conn.Close();
@@ -224,7 +228,7 @@ INNER JOIN sys.columns col1
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
 
         using var connection = ConnectionGetters[generatorVariables.DatabaseProvider]
-            .Invoke(generatorVariables.DatabaseConnection.ToConnectionString());
+            .Invoke(generatorVariables.DatabaseConnectionData.ToConnectionString());
         connection.Open();
 
         using var sqlCommand = connection.CreateCommand();
@@ -259,7 +263,7 @@ INNER JOIN sys.columns col1
             var columnName = reader.GetString("column_name");
 
             result[foreignTableName] = GetPrimaryKeysAndTypesForModel(generatorVariables.DatabaseProvider,
-                    generatorVariables.DatabaseConnection.ToConnectionString(),
+                    generatorVariables.DatabaseConnectionData.ToConnectionString(),
                     foreignTableName)
                 .ToDictionary(entry => new ForeignKey(columnName, entry.Key), entry => entry.Value);
         }
@@ -272,7 +276,7 @@ INNER JOIN sys.columns col1
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
 
         using var connection = ConnectionGetters[generatorVariables.DatabaseProvider]
-            .Invoke(generatorVariables.DatabaseConnection.ToConnectionString());
+            .Invoke(generatorVariables.DatabaseConnectionData.ToConnectionString());
         connection.Open();
 
         using var sqlCommand = connection.CreateCommand();

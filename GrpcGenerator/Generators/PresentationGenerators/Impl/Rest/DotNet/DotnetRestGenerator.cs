@@ -17,7 +17,7 @@ public class DotnetRestGenerator : IPresentationGenerator
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Presentation/Controllers");
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (tableName, primaryKeys, foreignKeys) =>
             {
                 var modelName = StringUtils.GetDotnetNameFromSqlName(tableName);
@@ -25,7 +25,7 @@ public class DotnetRestGenerator : IPresentationGenerator
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")) return;
                 DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
                 GenerateController(uuid, modelName, primaryKeys, foreignKeys);
-            });
+            },tableName=>generatorVariables.IncludedTables==null || generatorVariables.IncludedTables.Count == 0 || generatorVariables.IncludedTables.Contains(tableName));
     }
 
     private static void GenerateController(string uuid, string modelName, Dictionary<string, Type> primaryKeys,

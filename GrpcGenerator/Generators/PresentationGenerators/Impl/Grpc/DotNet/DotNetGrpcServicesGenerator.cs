@@ -15,10 +15,10 @@ public class DotNetGrpcServicesGenerator : IPresentationGenerator
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
         Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Presentation");
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
-            (className, primaryKeys, foreignKeys) =>
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
+            (tableName, primaryKeys, foreignKeys) =>
             {
-                className = StringUtils.GetDotnetNameFromSqlName(className);
+                var className = StringUtils.GetDotnetNameFromSqlName(tableName);
                 if (char.ToLower(className[^1]) == 's') className = className[..^1];
                 DotNetUtils.ConvertPrimaryKeysAndForeignKeysToDotnetNames(ref primaryKeys, ref foreignKeys);
 
@@ -60,7 +60,7 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
     
 {GetFindByForeignKeyMethodCodes(className, foreignKeys)}
 }}");
-            });
+            },tableName=>generatorVariables.IncludedTables==null || generatorVariables.IncludedTables.Count == 0 || generatorVariables.IncludedTables.Contains(tableName));
     }
 
     private static string GetFindByIdMethodCode(string className, Dictionary<string, Type> primaryKeys)

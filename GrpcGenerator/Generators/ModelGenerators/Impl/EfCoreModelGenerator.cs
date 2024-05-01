@@ -38,12 +38,12 @@ public class EfCoreModelGenerator : IModelGenerator
         var process = new Process();
         process.StartInfo.WorkingDirectory = destinationFolder;
         process.StartInfo.FileName = "efcpt";
-        var connectionString = generatorVariables.DatabaseConnection.ToConnectionString();
-        process.StartInfo.Arguments = $"\"{connectionString}\" {generatorVariables.DatabaseConnection.Provider}";
+        var connectionString = generatorVariables.DatabaseConnectionData.ToConnectionString();
+        process.StartInfo.Arguments = $"\"{connectionString}\" {generatorVariables.DatabaseConnectionData.Provider}";
         process.Start();
         process.WaitForExit();
-        GenerateModelsRegistration(destinationFolder, generatorVariables.DatabaseConnection.DatabaseName,
-            generatorVariables.DatabaseConnection.Provider, generatorVariables.ProjectName);
+        GenerateModelsRegistration(destinationFolder, generatorVariables.DatabaseConnectionData.DatabaseName,
+            generatorVariables.DatabaseConnectionData.Provider, generatorVariables.ProjectName);
     }
 
     private static void GenerateModelsRegistration(string targetDirectory, string databaseName, string provider,

@@ -1,7 +1,7 @@
 using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
-namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
+namespace GrpcGenerator.Generators.PresentationGenerators.Impl.Grpc.DotNet;
 
 public class GrpcProtofileGenerator : IPresentationGenerator
 {
@@ -56,7 +56,7 @@ import ""google/protobuf/empty.proto"";
 
         var result = "";
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (className, primaryKeys, foreignKeys) =>
             {
                 className = StringUtils.GetDotnetNameFromSqlName(className);
@@ -79,7 +79,7 @@ import ""google/protobuf/empty.proto"";
 }}
 
 ";
-            });
+            },tableName=>generatorVariables.IncludedTables==null || generatorVariables.IncludedTables.Count == 0 || generatorVariables.IncludedTables.Contains(tableName));
         return result;
     }
 
@@ -89,7 +89,7 @@ import ""google/protobuf/empty.proto"";
 
         var result = "";
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
-            generatorVariables.DatabaseConnection.ToConnectionString(),
+            generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (className, primaryKeys, foreignKeys) =>
             {
                 className = StringUtils.GetDotnetNameFromSqlName(className);
@@ -109,7 +109,7 @@ import ""google/protobuf/empty.proto"";
 {GetCreateRequestMessage(uuid, foreignKeys, className)}
 
 ";
-            });
+            },tableName=>generatorVariables.IncludedTables==null || generatorVariables.IncludedTables.Count == 0 || generatorVariables.IncludedTables.Contains(tableName));
         return result;
     }
 

@@ -1,8 +1,8 @@
 namespace GrpcGenerator.Domain;
 
-public class DatabaseConnection
+public class DatabaseConnectionData
 {
-    public DatabaseConnection(string databaseServer, string databaseName, string databasePort, string databasePwd,
+    public DatabaseConnectionData(string databaseServer, string databaseName, string databasePort, string databasePwd,
         string databaseUid, string provider)
     {
         DatabaseServer = databaseServer;

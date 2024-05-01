@@ -7,5 +7,6 @@ public class MapperRegistration : Profile
     public MapperRegistration()
     {
         CreateMap<GenerationRequestMessage, GenerationRequest>();
+        CreateMap<GrpcDatabaseConnectionData, DatabaseConnectionData>();
     }
 }
