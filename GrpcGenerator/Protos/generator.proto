@@ -9,7 +9,7 @@ message GenerationRequestMessage {
   string solutionName = 1;
   string projectName = 2;
   GrpcDatabaseConnectionData databaseConnectionData = 3;
-  repeated string architecture = 4;
+  repeated string architectures = 4;
   repeated string includedTables = 5;
 }
 

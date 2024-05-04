@@ -201,11 +201,11 @@ public class {modelName}Controller : ControllerBase
         using var stream =
             new StreamWriter(
                 File.Create(
-                    $"{generatorVariables.ProjectDirectory}/Presentation/PresentationServiceRegistration.cs"));
+                    $"{generatorVariables.ProjectDirectory}/Presentation/RestPresentationServiceRegistration.cs"));
         stream.Write($@"namespace {generatorVariables.ProjectName}.Presentation;
-public static class PresentationServiceRegistration
+public static class RestPresentationServiceRegistration
 {{
-    public static void AddPresentation(this IServiceCollection services)
+    public static void AddRestPresentation(this IServiceCollection services)
     {{
         services.AddControllers();
         services.AddSwaggerGen();
@@ -220,11 +220,11 @@ public static class PresentationServiceRegistration
         using var stream =
             new StreamWriter(
                 File.Create(
-                    $"{generatorVariables.ProjectDirectory}/Presentation/PresentationWebAppRegistration.cs"));
+                    $"{generatorVariables.ProjectDirectory}/Presentation/RestPresentationWebAppRegistration.cs"));
         stream.Write($@"namespace {generatorVariables.ProjectName}.Presentation;
-public static class PresentationWebAppRegistration
+public static class RestPresentationWebAppRegistration
 {{
-    public static void AddPresentation(this WebApplication app)
+    public static void AddRestPresentation(this WebApplication app)
     {{
         app.MapControllers();
         app.UseSwagger();

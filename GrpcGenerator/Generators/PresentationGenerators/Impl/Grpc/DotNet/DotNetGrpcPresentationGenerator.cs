@@ -1,8 +1,7 @@
 using GrpcGenerator.Generators.MapperGenerators.Impl;
-using GrpcGenerator.Generators.PresentationGenerators.Impl.Grpc.DotNet;
 using GrpcGenerator.Utils;
 
-namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
+namespace GrpcGenerator.Generators.PresentationGenerators.Impl.Grpc.DotNet;
 
 public class DotNetGrpcPresentationGenerator : IPresentationGenerator
 {
@@ -21,11 +20,11 @@ public class DotNetGrpcPresentationGenerator : IPresentationGenerator
         using var stream =
             new StreamWriter(
                 File.Create(
-                    $"{generatorVariables.ProjectDirectory}/Presentation/PresentationServiceRegistration.cs"));
+                    $"{generatorVariables.ProjectDirectory}/Presentation/GrpcPresentationServiceRegistration.cs"));
         stream.Write($@"namespace {generatorVariables.ProjectName}.Presentation;
-public static class PresentationServiceRegistration
+public static class GrpcPresentationServiceRegistration
 {{
-    public static void AddPresentation(this IServiceCollection services)
+    public static void AddGrpcPresentation(this IServiceCollection services)
     {{
         services.AddGrpc();
     }}
@@ -47,11 +46,13 @@ public static class PresentationServiceRegistration
         using var stream =
             new StreamWriter(
                 File.Create(
-                    $"{generatorVariables.ProjectDirectory}/Presentation/PresentationWebAppRegistration.cs"));
-        stream.Write($@"namespace {generatorVariables.ProjectName}.Presentation;
-public static class PresentationWebAppRegistration
+                    $"{generatorVariables.ProjectDirectory}/Presentation/GrpcPresentationWebAppRegistration.cs"));
+        stream.Write($@"using {generatorVariables.ProjectName}.Presentation.Grpc;
+
+namespace {generatorVariables.ProjectName}.Presentation;
+public static class GrpcPresentationWebAppRegistration
 {{
-    public static void AddPresentation(this WebApplication app)
+    public static void AddGrpcPresentation(this WebApplication app)
     {{
 {serviceRegistration}
     }}

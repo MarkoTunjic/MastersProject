@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
@@ -5,6 +6,25 @@ namespace GrpcGenerator.Generators.AdditionalActions.Impl;
 
 public class RegisterServicesAdditionalAction : IAdditionalAction
 {
+    private static readonly Dictionary<string, string> PresentationAppRegistration = new()
+    {
+        {
+            "grpc", "app.AddGrpcPresentation();"
+        },
+        {
+            "rest", "app.AddRestPresentation();"
+        }
+    };
+    
+    private static readonly Dictionary<string, string> PresentationServiceRegistration = new()
+    {
+        {
+            "grpc", "builder.Services.AddGrpcPresentation();"
+        },
+        {
+            "rest", "builder.Services.AddRestPresentation();"
+        }
+    };
     public void DoAdditionalAction(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
@@ -22,10 +42,13 @@ using {generatorVariables.ProjectName}.Presentation;
 builder.Services.AddModels(builder.Configuration);
 builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
-builder.Services.AddPresentation();
 ");
         
-        lines.Insert(4,"app.AddPresentation();");
+       generatorVariables.Architecture.ForEach(architecture =>
+       {
+           lines.Insert(2, PresentationServiceRegistration[architecture]);
+           lines.Insert(4+generatorVariables.Architecture.Count,PresentationAppRegistration[architecture]);
+       }); 
         
         File.WriteAllLines(generatorVariables.ProjectDirectory + "/Program.cs", lines);
     }
