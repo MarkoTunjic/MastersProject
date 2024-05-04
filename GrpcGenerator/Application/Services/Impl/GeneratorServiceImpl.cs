@@ -63,7 +63,7 @@ public class GeneratorServiceImpl : IGeneratorService
                         generationRequest.DatabaseConnectionData.Provider),
                     generationRequest.ProjectName, generationRequest.SolutionName, projectRoot,
                     generationRequest.DatabaseConnectionData.Provider, generationRequest.Architectures,
-                    generationRequest.IncludedTables);
+                    generationRequest.IncludedTables, generationRequest.Cascade);
             GeneratorVariablesProvider.AddVariables(guid, generatorVariables);
 
             ProjectRenamer.RenameDotNetProject($"{_configuration["sourceCodeRoot"]}/{guid}", oldSolutionName,

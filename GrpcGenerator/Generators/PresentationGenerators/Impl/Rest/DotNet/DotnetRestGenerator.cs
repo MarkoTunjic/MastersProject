@@ -42,7 +42,9 @@ public class DotnetRestGenerator : IPresentationGenerator
         }
 
         var modelFieldName = char.ToLower(modelName[0]) + modelName[1..];
-
+        var cascadeService = generatorVariables.Cascade ? "private readonly CascadeDeleteService _cascadeDeleteService;" : "";
+        var cascadeServiceArgument = generatorVariables.Cascade ? ", CascadeDeleteService cascadeDeleteService" : "";
+        var cascadeServiceAssignment = generatorVariables.Cascade ? "_cascadeDeleteService = cascadeDeleteService;" : "";
         using var stream =
             new StreamWriter(File.Create(
                 $"{generatorVariables.ProjectDirectory}/Presentation/Controllers/{modelName}Controller.cs"));
@@ -57,19 +59,19 @@ namespace {generatorVariables.ProjectName}.{NamespaceNames.ControllersNamespace}
 public class {modelName}Controller : ControllerBase
 {{
     private readonly I{modelName}Service _{modelFieldName}Service;
-    private readonly CascadeDeleteService _cascadeDeleteService;
+    {cascadeService}
 
-    public {modelName}Controller(I{modelName}Service {modelFieldName}Service, CascadeDeleteService cascadeDeleteService)
+    public {modelName}Controller(I{modelName}Service {modelFieldName}Service{cascadeServiceArgument})
     {{
         _{modelFieldName}Service = {modelFieldName}Service;
-        _cascadeDeleteService = cascadeDeleteService;
+        {cascadeServiceAssignment}
     }}
 
     {GetFindAllMethodCode(modelName, foreignKeys)}
 
     {GetFindByIdMethodCode(modelName, primaryKeys)}
 
-    {GetDeleteByIdMethodCode(modelName, primaryKeys)}
+    {GetDeleteByIdMethodCode(generatorVariables.Cascade, modelName, primaryKeys)}
 
     {GetUpdateMethodCode(modelName, primaryKeys)}
 
@@ -106,18 +108,18 @@ public class {modelName}Controller : ControllerBase
     }}";
     }
 
-    private static string GetDeleteByIdMethodCode(string modelName, Dictionary<string, Type> primaryKeys)
+    private static string GetDeleteByIdMethodCode(bool cascade, string modelName, Dictionary<string, Type> primaryKeys)
     {
         var route = primaryKeys.Aggregate("",
             (current, entry) => current + $"/{{{char.ToLower(entry.Key[0]) + entry.Key[1..]}}}");
         route = route[1..];
-        var service = $"_{char.ToLower(modelName[0]) + modelName[1..]}Service";
+        var service = cascade ? "_cascadeDeleteService" : $"_{char.ToLower(modelName[0]) + modelName[1..]}Service";
 
         return $@"[HttpDelete]
     [Route(""{route}/{modelName}"")]
     public async Task<ActionResult> Delete{modelName}ById({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, false)})
     {{
-        await _cascadeDeleteService.Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
+        await {service}.Delete{modelName}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true)});
         return NoContent();
     }}";
     }

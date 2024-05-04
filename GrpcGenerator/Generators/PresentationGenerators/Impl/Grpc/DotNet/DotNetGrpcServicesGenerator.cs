@@ -24,6 +24,11 @@ public class DotNetGrpcServicesGenerator : IPresentationGenerator
 
                 if (!File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{className}.cs")) return;
                 var variableName = char.ToLower(className[0]) + className[1..];
+                
+                var cascadeService = generatorVariables.Cascade ? "private readonly CascadeDeleteService _cascadeDeleteService;" : "";
+                var cascadeServiceArgument = generatorVariables.Cascade ? ", CascadeDeleteService cascadeDeleteService" : "";
+                var cascadeServiceAssignment = generatorVariables.Cascade ? "_cascadeDeleteService = cascadeDeleteService;" : "";
+
                 using var stream =
                     new StreamWriter(File.Create(
                         $"{generatorVariables.ProjectDirectory}/Presentation/Grpc/Grpc{className}ServiceImpl.cs"));
@@ -39,20 +44,20 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
 {{
     private readonly I{className}Service _{variableName}Service;
     private readonly IMapper _mapper;
-    private readonly CascadeDeleteService _cascadeDeleteService;
+    {cascadeService}
 
-    public Grpc{className}ServiceImpl(I{className}Service {variableName}Service, IMapper mapper, CascadeDeleteService cascadeDeleteService)
+    public Grpc{className}ServiceImpl(I{className}Service {variableName}Service, IMapper mapper{cascadeServiceArgument})
     {{
         _{variableName}Service = {variableName}Service;
         _mapper = mapper;
-        _cascadeDeleteService = cascadeDeleteService;
+        {cascadeServiceAssignment}
     }}
     
     {GetFindByIdMethodCode(className, primaryKeys)}
 
     {GetFindAllMethodCode(className)}
 
-    {GetDeleteByIdMethodCode(className, primaryKeys)}
+    {GetDeleteByIdMethodCode(generatorVariables.Cascade, className, primaryKeys)}
     
     {GetUpdateMethodCode(className, primaryKeys)}
 
@@ -92,14 +97,15 @@ public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}
     }}";
     }
 
-    private static string GetDeleteByIdMethodCode(string className, Dictionary<string, Type> primaryKeys)
+    private static string GetDeleteByIdMethodCode(bool cascade, string className, Dictionary<string, Type> primaryKeys)
     {
         var variableName = char.ToLower(className[0]) + className[1..];
+        var service = cascade ? "_cascadeDeleteService" : $"_{char.ToLower(className[0]) + className[1..]}Service";
 
         return
             $@"public override async Task<Empty> Delete{className}ById({className}IdRequest {variableName}Id, ServerCallContext context)
     {{
-        await _cascadeDeleteService.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
+        await {service}.Delete{className}ByIdAsync({DatabaseSchemaUtils.GetMethodInputForPrimaryKeys(primaryKeys, true, $"{variableName}Id.")});
     
         return new Empty();
     }}";

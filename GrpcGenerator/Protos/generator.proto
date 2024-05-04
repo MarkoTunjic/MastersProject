@@ -8,9 +8,10 @@ service Generator {
 message GenerationRequestMessage {
   string solutionName = 1;
   string projectName = 2;
-  GrpcDatabaseConnectionData databaseConnectionData = 3;
-  repeated string architectures = 4;
-  repeated string includedTables = 5;
+  bool cascade = 3;
+  GrpcDatabaseConnectionData databaseConnectionData = 4;
+  repeated string architectures = 5;
+  repeated string includedTables = 6;
 }
 
 message GrpcDatabaseConnectionData {
