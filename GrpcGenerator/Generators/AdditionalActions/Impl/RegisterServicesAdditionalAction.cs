@@ -24,11 +24,8 @@ builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
 builder.Services.AddPresentation();
 ");
-
-        if (generatorVariables.Architecture == "rest")
-        {
-            lines.Insert(4,"app.AddPresentation();");
-        }
+        
+        lines.Insert(4,"app.AddPresentation();");
         
         File.WriteAllLines(generatorVariables.ProjectDirectory + "/Program.cs", lines);
     }

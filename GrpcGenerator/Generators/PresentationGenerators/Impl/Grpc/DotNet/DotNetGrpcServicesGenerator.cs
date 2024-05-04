@@ -1,7 +1,7 @@
 using GrpcGenerator.Domain;
 using GrpcGenerator.Utils;
 
-namespace GrpcGenerator.Generators.PresentationGenerators.Impl.DotNet;
+namespace GrpcGenerator.Generators.PresentationGenerators.Impl.Grpc.DotNet;
 
 public class DotNetGrpcServicesGenerator : IPresentationGenerator
 {
@@ -13,7 +13,7 @@ public class DotNetGrpcServicesGenerator : IPresentationGenerator
     private static void GenerateServices(string uuid)
     {
         var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
-        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Presentation");
+        Directory.CreateDirectory($"{generatorVariables.ProjectDirectory}/Presentation/Grpc");
         DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (tableName, primaryKeys, foreignKeys) =>
@@ -26,7 +26,7 @@ public class DotNetGrpcServicesGenerator : IPresentationGenerator
                 var variableName = char.ToLower(className[0]) + className[1..];
                 using var stream =
                     new StreamWriter(File.Create(
-                        $"{generatorVariables.ProjectDirectory}/Presentation/Grpc{className}ServiceImpl.cs"));
+                        $"{generatorVariables.ProjectDirectory}/Presentation/Grpc/Grpc{className}ServiceImpl.cs"));
                 stream.Write(@$"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
@@ -34,7 +34,7 @@ using AutoMapper;
 using Grpc.Core;
 using Google.Protobuf.WellKnownTypes;
 
-namespace {generatorVariables.ProjectName}.Presentation;
+namespace {generatorVariables.ProjectName}.Presentation.Grpc;
 public class Grpc{className}ServiceImpl : Grpc{className}Service.Grpc{className}ServiceBase
 {{
     private readonly I{className}Service _{variableName}Service;

@@ -25,7 +25,15 @@ namespace GrpcGenerator.Application.Services.Impl;
 public class GeneratorServiceImpl : IGeneratorService
 {
     private readonly IConfiguration _configuration;
-
+    private static readonly Dictionary<string, IPresentationGenerator> PresentationGenerators = new()
+    {
+        {
+            "grpc", new DotNetGrpcPresentationGenerator() 
+        },
+        {
+            "rest", new DotnetRestGenerator()
+        }
+    };
     public GeneratorServiceImpl(IConfiguration configuration)
     {
         _configuration = configuration;
@@ -79,10 +87,8 @@ public class GeneratorServiceImpl : IGeneratorService
 
             IServiceGenerator serviceGenerator = new DotNetServiceGenerator();
             serviceGenerator.GenerateServices(guid);
-
-            IPresentationGenerator presentationGenerator =
-                generationRequest.Architecture == "grpc" ? new DotNetGrpcPresentationGenerator() : new DotnetRestGenerator();
-            presentationGenerator.GeneratePresentation(guid);
+            
+            generationRequest.Architecture.ForEach(architecture=>PresentationGenerators[architecture].GeneratePresentation(guid));
 
             Directory.CreateDirectory($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}");
             Zipper.ZipDirectory($"{_configuration["sourceCodeRoot"]}/{guid}",
