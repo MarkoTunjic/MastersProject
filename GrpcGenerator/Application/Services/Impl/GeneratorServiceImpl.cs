@@ -112,9 +112,8 @@ public class GeneratorServiceImpl : IGeneratorService
         }
         finally
         {
-            Directory.Delete($"{_configuration["sourceCodeRoot"]}/{guid}", true);
-            Directory.Delete($"{_configuration["sourceCodeRoot"]}/{_configuration["mainProjectName"]}/{guid}",true);
             GeneratorVariablesProvider.RemoveVariables(guid);
+            Directory.Delete($"{_configuration["sourceCodeRoot"]}/{guid}", true);
         }
 
         return result;
