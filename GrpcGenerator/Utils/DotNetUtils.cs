@@ -13,7 +13,12 @@ public static class DotNetUtils
     
     public static void ConvertStringListToDotNetNames(ref List<string> list)
     {
-        list=list.Select(StringUtils.GetDotnetNameFromSqlName).ToList();
+        list=list.Select(el=>
+        {
+            var dotnetName = StringUtils.GetDotnetNameFromSqlName(el);
+            if (char.ToLower(dotnetName[^1]) == 's') dotnetName = dotnetName[..^1];
+            return dotnetName;
+        }).ToList();
     }
 
     public static void ConvertPrimaryKeysToDotnetNames(ref Dictionary<string, Type> primaryKeysAndTypes)
