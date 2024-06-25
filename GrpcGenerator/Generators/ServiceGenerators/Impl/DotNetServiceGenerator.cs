@@ -12,11 +12,12 @@ public class DotNetServiceGenerator : IServiceGenerator
 
         var targetDirectory = $"{generatorVariables.ProjectDirectory}/Application/Services";
 
-        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid, generatorVariables.DatabaseProvider,
+        var modelNames = DatabaseSchemaUtils.FindTablesAndExecuteActionForEachTable(uuid,
+            generatorVariables.DatabaseProvider,
             generatorVariables.DatabaseConnectionData.ToConnectionString(),
             (modelName, primaryKeys, foreignKeys) =>
                 GenerateService(uuid, modelName, primaryKeys, foreignKeys, targetDirectory));
-        GenerateCascadeDeleteService(uuid,modelNames);
+        GenerateCascadeDeleteService(uuid, modelNames);
         modelNames = modelNames.Select(modelName =>
         {
             modelName = StringUtils.GetDotnetNameFromSqlName(modelName);
@@ -25,6 +26,7 @@ public class DotNetServiceGenerator : IServiceGenerator
         }).ToList();
         GenerateApplicationServiceRegistration(uuid, modelNames);
         GenerateNotFoundException(uuid);
+        GenerateNotFoundExceptionFilter(uuid);
     }
 
     public void GenerateService(string uuid, string modelName, Dictionary<string, Type> primaryKeys,
@@ -291,6 +293,7 @@ public class NotFoundException : Exception
                     $"{generatorVariables.ProjectDirectory}/Application/ApplicationServiceRegistration.cs"));
         stream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace}.Impl;
+using {generatorVariables.ProjectName}.Application.ExceptionHandlers;
 
 namespace {generatorVariables.ProjectName}.Application;
 public static class ApplicationServiceRegistration
@@ -301,7 +304,53 @@ public static class ApplicationServiceRegistration
         foreach (var modelName in modelNames.Where(modelName =>
                      File.Exists($"{generatorVariables.ProjectDirectory}/Domain/Models/{modelName}.cs")))
             stream.WriteLine($"\t\tservices.AddTransient<I{modelName}Service, {modelName}Service>();");
+        stream.WriteLine($"\t\tservices.AddTransient<NotFoundExceptionFilter>();");
         stream.WriteLine("\t}");
         stream.WriteLine("}");
+    }
+    
+    private static void GenerateNotFoundExceptionFilter(string uuid)
+    {
+        var generatorVariables = GeneratorVariablesProvider.GetVariables(uuid);
+        var targetDirectory = $"{generatorVariables.ProjectDirectory}/Application/ExceptionFilters";
+        
+        using var exceptionFilterStream = new StreamWriter(File.Create($"{targetDirectory}/NotFoundExceptionFilter.cs"));
+        exceptionFilterStream.Write($@"using System.Net;
+using Domain.Exceptions;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
+
+namespace {generatorVariables.ProjectName}.Application.ExceptionHandlers;
+public class NotFoundExceptionFilter : IExceptionFilter
+{{
+    private readonly ILogger<NotFoundExceptionHandler> _logger;
+
+    public NotFoundExceptionHandler(ILogger<NotFoundExceptionHandler> logger)
+    {{
+        _logger = logger;
+    }}
+
+    public void OnException(ExceptionContext context)
+    {{
+        if (context.Exception is not NotFoundException)
+        {{
+            return;
+        }}
+        
+        var result = new ObjectResult(new
+        {{
+            context.Exception.Message,
+            context.Exception.Source,
+            ExceptionType = context.Exception.GetType().FullName,
+        }})
+        {{
+            StatusCode = (int)HttpStatusCode.NotFound
+        }};
+        
+        _logger.LogError(""Unhandled exception occurred while executing request: {{Ex}}"", context.Exception);
+        
+        context.Result = result;
+    }}
+}}");
     }
 }

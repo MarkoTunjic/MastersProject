@@ -51,11 +51,13 @@ public class DotnetRestGenerator : IPresentationGenerator
         stream.Write($@"using {generatorVariables.ProjectName}.{NamespaceNames.DtoNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.RequestsNamespace};
 using {generatorVariables.ProjectName}.{NamespaceNames.ServicesNamespace};
+using {generatorVariables.ProjectName}.Application.ExceptionHandlers;
 using Microsoft.AspNetCore.Mvc;
 
 namespace {generatorVariables.ProjectName}.{NamespaceNames.ControllersNamespace};
 [ApiController]
 [Route(""/api/[controller]"")]
+[ServiceFilter(typeof(NotFoundExceptionHandler))]
 public class {modelName}Controller : ControllerBase
 {{
     private readonly I{modelName}Service _{modelFieldName}Service;
